@@ -33,7 +33,9 @@ Item {
         model: root.liveView.commits
 
         CommitNode {
+            required property string hash
             required property int column
+            isHead: hash === root.liveView.headCommitHash
             centerX: root.columnCenterX(column)
             centerY: root.commitY
         }

@@ -11,6 +11,11 @@ Interface:
 * HEAD: ``headBranch`` ("" when detached), ``headCommitHash`` ("" when unborn),
   ``headDetached``, ``headColumn`` (-1 when unborn).
 * ``columnCount`` — number of History columns.
+* ``workingTreeFiles`` / ``stagingAreaFiles`` — list models of changed files only
+  (roles: ``path``, ``change`` — one of ``untracked``, ``new``, ``modified``,
+  ``deleted``, ``renamed`` —, ``originalPath`` ("" unless renamed), ``conflicted``).
+  A partially staged file appears in both. The HEAD commit (``headCommitHash``) is
+  highlighted in the History as the third area.
 """
 
 from __future__ import annotations
@@ -22,6 +27,7 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from git_visualizer.git_reader import read_snapshot
 from git_visualizer.history_layout import commit_columns
 from git_visualizer.live_view.list_model import RowListModel
+from git_visualizer.live_view.three_areas import FILE_ROLES, file_rows
 from git_visualizer.snapshot import RepositorySnapshot
 
 
@@ -36,6 +42,8 @@ class LiveViewModel(QObject):
         self._columns: dict[str, int] = {}
         self._commits = RowListModel(("hash", "shortHash", "subject", "column"), self)
         self._branch_labels = RowListModel(("name", "commitHash", "column", "hasHead"), self)
+        self._working_tree_files = RowListModel(FILE_ROLES, self)
+        self._staging_area_files = RowListModel(FILE_ROLES, self)
 
     @Slot()
     def notifyRepositoryChanged(self) -> None:
@@ -66,8 +74,22 @@ class LiveViewModel(QObject):
                 for branch in snapshot.branches
             ]
         )
+        self._working_tree_files.set_rows(file_rows(snapshot.working_tree))
+        self._staging_area_files.set_rows(file_rows(snapshot.staging_area))
         self.headChanged.emit()
         self.columnCountChanged.emit()
+
+    # --- Three Areas -------------------------------------------------------------
+
+    def _get_working_tree_files(self) -> RowListModel:
+        return self._working_tree_files
+
+    workingTreeFiles = Property(QObject, _get_working_tree_files, constant=True)
+
+    def _get_staging_area_files(self) -> RowListModel:
+        return self._staging_area_files
+
+    stagingAreaFiles = Property(QObject, _get_staging_area_files, constant=True)
 
     # --- History -----------------------------------------------------------------
 

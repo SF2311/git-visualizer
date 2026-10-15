@@ -31,4 +31,21 @@ QtObject {
     readonly property int labelFontSize: Math.round(20 * zoom)
     readonly property int overlayTitleFontSize: Math.round(30 * zoom)
     readonly property int overlayFontSize: Math.round(22 * zoom)
+
+    // Three Areas strip (ticket 04)
+    readonly property color stripBackground: dark ? "#1c212b" : "#f0efe9"
+    readonly property color stripDivider: dark ? "#3a4252" : "#d6d4cc"
+    readonly property color fileFill: dark ? "#232937" : "#ffffff"
+    readonly property color fileBorder: dark ? "#3a4252" : "#d6d4cc"
+    readonly property color changeUntracked: dark ? "#51cf66" : "#2f9e44"
+    readonly property color changeNew: dark ? "#51cf66" : "#2f9e44"
+    readonly property color changeModified: dark ? "#fcc419" : "#e8a317"
+    readonly property color changeDeleted: dark ? "#ff6b6b" : "#c92a2a"
+    readonly property color changeRenamed: dark ? "#9775fa" : "#7048e8"
+    readonly property color conflict: dark ? "#ff6b6b" : "#e03131"
+    readonly property color headCommitHalo: headFill
+    readonly property int areaTitleFontSize: Math.round(24 * zoom)
+    readonly property int fileFontSize: Math.round(20 * zoom)
+    readonly property int changeFontSize: Math.round(15 * zoom)
+    readonly property real fileRowHeight: 40 * zoom
 }
