@@ -12,7 +12,7 @@ Window {
     title: "Git Visualizer"
     color: Theme.background
 
-    // Temporary manual refresh until the watcher (ticket 02) exists.
+    // Hidden fallback: the watcher normally refreshes the Live View on its own.
     Shortcut {
         sequence: "F5"
         onActivated: window.liveView.notifyRepositoryChanged()
@@ -21,9 +21,16 @@ Window {
     HistoryView {
         id: history
         liveView: window.liveView
+        visible: window.liveView.isRepository
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
         height: parent.height * 2 / 3
+    }
+
+    WaitingForRepository {
+        visible: !window.liveView.isRepository
+        anchors.centerIn: parent
+        folder: window.liveView.repositoryPath
     }
 }

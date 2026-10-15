@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from conftest import GitRepo
@@ -32,6 +33,22 @@ def test_qml_view_loads_without_warnings(
     repo.commit("Erster Commit")
     repo.commit("Add login")
     model = LiveViewModel(repo.path)
+    model.notifyRepositoryChanged()
+
+    engine = create_engine(model)
+    qapp.processEvents()
+
+    assert engine.rootObjects(), "Main.qml did not load"
+    assert qt_messages == []
+    for root in engine.rootObjects():
+        root.deleteLater()
+    qapp.processEvents()
+
+
+def test_qml_view_loads_without_warnings_in_a_non_repository_folder(
+    tmp_path: Path, qapp: QGuiApplication, qt_messages: list[str]
+) -> None:
+    model = LiveViewModel(tmp_path)
     model.notifyRepositoryChanged()
 
     engine = create_engine(model)
