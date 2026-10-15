@@ -8,10 +8,13 @@ manipulates in a separate terminal. See `CONTEXT.md` for the vocabulary and
 
 ```sh
 uv tool install .        # or: pipx install .
-git-visualizer /path/to/repository
+git-visualizer /path/to/repository   # or without a path: folder picker
 ```
 
-`F5` re-reads the repository (temporary until the filesystem watcher exists).
+The Live View updates on its own after every git command (filesystem watcher with a
+~150 ms debounce, plus a 2 s polling fallback). A folder that is not yet a repository
+shows "Kein Repository – warte auf `git init`" until `git init` is run in it. `F5`
+re-reads the repository manually (hidden fallback).
 
 ## Development
 
@@ -26,6 +29,7 @@ Layout (`src/git_visualizer/`):
 
 - `git_reader.py` — runs read-only git commands and produces an immutable Repository Snapshot (`snapshot.py`)
 - `history_layout.py` — columns by ancestry
+- `watcher.py` — watches the git directory and the Working Tree, debounces, polls, calls "repository changed"
 - `live_view/` — `LiveViewModel`, the single object QML binds to and the single test seam
 - `qml/` — the view (`Main.qml`, `HistoryView.qml`, components, `Theme` singleton)
 - `app.py` — console entry point

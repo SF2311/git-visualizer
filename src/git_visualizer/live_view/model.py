@@ -3,7 +3,10 @@
 Interface:
 
 * ``notifyRepositoryChanged()`` — re-read the Observed Repository and update all
-  exposed properties (called by the manual refresh key, later by the watcher).
+  exposed properties (called by the watcher; ``F5`` remains a hidden fallback).
+* ``isRepository`` — ``False`` while the observed folder is not (yet) a git
+  repository; all History properties are then empty.
+* ``repositoryPath`` — the observed folder.
 * ``commits`` — list model, one row per commit in the History
   (roles: ``hash``, ``shortHash``, ``subject``, ``column``).
 * ``branchLabels`` — list model, one row per local branch
@@ -24,7 +27,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
-from git_visualizer.git_reader import read_snapshot
+from git_visualizer.git_reader import NotARepositoryError, read_snapshot
 from git_visualizer.history_layout import commit_columns
 from git_visualizer.live_view.list_model import RowListModel
 from git_visualizer.live_view.three_areas import FILE_ROLES, file_rows
@@ -34,11 +37,13 @@ from git_visualizer.snapshot import RepositorySnapshot
 class LiveViewModel(QObject):
     headChanged = Signal()
     columnCountChanged = Signal()
+    isRepositoryChanged = Signal()
 
     def __init__(self, repository_path: Path | str, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._repository_path = Path(repository_path)
         self._snapshot = RepositorySnapshot.empty()
+        self._is_repository = False
         self._columns: dict[str, int] = {}
         self._commits = RowListModel(("hash", "shortHash", "subject", "column"), self)
         self._branch_labels = RowListModel(("name", "commitHash", "column", "hasHead"), self)
@@ -47,7 +52,19 @@ class LiveViewModel(QObject):
 
     @Slot()
     def notifyRepositoryChanged(self) -> None:
-        self._apply(read_snapshot(self._repository_path))
+        try:
+            snapshot = read_snapshot(self._repository_path)
+        except NotARepositoryError:
+            self._set_is_repository(False)
+            self._apply(RepositorySnapshot.empty())
+            return
+        self._set_is_repository(True)
+        self._apply(snapshot)
+
+    def _set_is_repository(self, is_repository: bool) -> None:
+        if is_repository != self._is_repository:
+            self._is_repository = is_repository
+            self.isRepositoryChanged.emit()
 
     def _apply(self, snapshot: RepositorySnapshot) -> None:
         self._snapshot = snapshot
@@ -90,6 +107,18 @@ class LiveViewModel(QObject):
         return self._staging_area_files
 
     stagingAreaFiles = Property(QObject, _get_staging_area_files, constant=True)
+
+    # --- Repository selection ---------------------------------------------------
+
+    def _get_is_repository(self) -> bool:
+        return self._is_repository
+
+    isRepository = Property(bool, _get_is_repository, notify=isRepositoryChanged)
+
+    def _get_repository_path(self) -> str:
+        return str(self._repository_path)
+
+    repositoryPath = Property(str, _get_repository_path, constant=True)
 
     # --- History -----------------------------------------------------------------
 
