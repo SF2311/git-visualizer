@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
 from conftest import GitRepo
 from PySide6.QtCore import QtMsgType, QMessageLogContext, qInstallMessageHandler
 from PySide6.QtGui import QGuiApplication
+from PySide6.QtTest import QTest
 
 from git_visualizer.app import create_engine
 from git_visualizer.live_view import LiveViewModel
@@ -81,6 +82,37 @@ def test_qml_view_loads_without_warnings_in_a_non_repository_folder(
 
     engine = create_engine(model)
     qapp.processEvents()
+
+    assert engine.rootObjects(), "Main.qml did not load"
+    assert qt_messages == []
+    for root in engine.rootObjects():
+        root.deleteLater()
+    qapp.processEvents()
+
+
+def test_qml_view_animates_history_transitions_without_warnings(
+    repo: GitRepo, qapp: QGuiApplication, qt_messages: list[str]
+) -> None:
+    model = LiveViewModel(repo.path)
+    model.notifyRepositoryChanged()
+    engine = create_engine(model)
+    qapp.processEvents()
+
+    steps: list[Callable[[], object]] = [
+        lambda: repo.commit("Erster Commit"),
+        lambda: repo.git("switch", "-q", "-c", "feature"),
+        lambda: repo.commit("Feature", file="feature.txt"),
+        lambda: repo.git("tag", "v1"),
+        lambda: repo.git("switch", "-q", "main"),
+        lambda: repo.git("merge", "-q", "--ff-only", "feature"),
+        lambda: repo.git("branch", "-q", "-d", "feature"),
+        lambda: repo.git("tag", "-d", "v1"),
+        lambda: repo.git("checkout", "-q", "--detach", "HEAD~1"),
+    ]
+    for step in steps:
+        step()
+        model.notifyRepositoryChanged()
+        QTest.qWait(120)
 
     assert engine.rootObjects(), "Main.qml did not load"
     assert qt_messages == []

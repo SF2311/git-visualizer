@@ -13,6 +13,13 @@ Rectangle {
     border.color: Theme.tagBorder
     border.width: 1
 
+    Behavior on x {
+        NumberAnimation { duration: Motion.slideDuration; easing.type: Motion.slideEasing }
+    }
+    Behavior on y {
+        NumberAnimation { duration: Motion.slideDuration; easing.type: Motion.slideEasing }
+    }
+
     Text {
         id: labelText
         anchors.centerIn: parent

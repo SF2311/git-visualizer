@@ -10,6 +10,26 @@ Item {
     width: pill.width
     height: Theme.labelHeight
 
+    // HEAD slides to its new place once it has been shown, but appears in place (e.g.
+    // on the first commit) instead of flying in from where it was hidden.
+    property bool placed: false
+    onVisibleChanged: {
+        if (!visible)
+            placed = false
+        else
+            Qt.callLater(() => { placed = visible })
+    }
+    Component.onCompleted: placed = visible
+
+    Behavior on x {
+        enabled: root.placed
+        NumberAnimation { duration: Motion.slideDuration; easing.type: Motion.slideEasing }
+    }
+    Behavior on y {
+        enabled: root.placed
+        NumberAnimation { duration: Motion.slideDuration; easing.type: Motion.slideEasing }
+    }
+
     // Pointer towards what HEAD points at (the label or commit below).
     Rectangle {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -29,6 +49,11 @@ Item {
         border.color: Theme.headFill
         border.width: 3
 
+        // Attaching or detaching HEAD switches its style while it slides.
+        Behavior on color {
+            ColorAnimation { duration: Motion.slideDuration }
+        }
+
         Text {
             id: headText
             anchors.centerIn: parent
@@ -36,6 +61,10 @@ Item {
             color: root.detached ? Theme.headFill : Theme.headText
             font.pixelSize: Theme.labelFontSize
             font.bold: true
+
+            Behavior on color {
+                ColorAnimation { duration: Motion.slideDuration }
+            }
         }
     }
 }
