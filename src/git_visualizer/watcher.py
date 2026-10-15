@@ -83,6 +83,8 @@ class RepositoryWatcher(QObject):
         if not self._debounce.isActive():
             self._pending_since.start()
             self._debounce.start()
+        # Capped on purpose: an operation longer than max_delay_ms (e.g. a long rebase) is
+        # shown in steps rather than as one transition at the end.
         elif self._pending_since.elapsed() < self._max_delay_ms:
             self._debounce.start()  # restart: wait for the burst to settle
 
