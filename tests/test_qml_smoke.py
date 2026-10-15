@@ -167,6 +167,16 @@ def test_qml_view_loads_remotes_and_upstream_without_warnings(
     engine = create_engine(model)
     qapp.processEvents()
 
+    # Remote-tracking Branches move and fade out like branch labels.
+    steps: list[Callable[[], object]] = [
+        lambda: repo.git("push", "-q"),
+        lambda: repo.git("branch", "-q", "-dr", "origin/feature"),
+    ]
+    for step in steps:
+        step()
+        model.notifyRepositoryChanged()
+        QTest.qWait(120)
+
     assert engine.rootObjects(), "Main.qml did not load"
     assert qt_messages == []
     for root in engine.rootObjects():

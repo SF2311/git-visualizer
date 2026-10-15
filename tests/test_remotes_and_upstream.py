@@ -294,6 +294,106 @@ def test_remote_tracking_label_is_stacked_with_the_branch_on_the_same_commit(
     assert len(slots) == 3
 
 
+# --- Transitions of Remote-tracking Branches -------------------------------------------
+
+
+def _transitions(model: LiveViewModel) -> set[tuple[str, str, str, str, str]]:
+    return {
+        (t["kind"], t["refType"], t["refName"], t["fromHash"], t["toHash"])
+        for t in rows(model, "transitions")
+    }
+
+
+def _ghosts(model: LiveViewModel) -> set[str]:
+    return {c["hash"] for c in rows(model, "commits") if c["isGhost"]}
+
+
+def _head(repo: GitRepo) -> str:
+    return repo.git("rev-parse", "HEAD").strip()
+
+
+def test_a_fetch_that_moves_a_remote_tracking_branch_clears_ghost_commits(
+    repo: GitRepo, remote: GitRepo, tmp_path: Path
+) -> None:
+    _published(repo, remote)
+    local = repo.commit("Lokal", file="lokal.txt")
+    model = _refreshed(repo)
+    repo.git("commit", "-q", "--amend", "-m", "Lokal (korrigiert)")
+    model.notifyRepositoryChanged()
+    assert _ghosts(model) == {local}
+    before = _remote_tracking(model)["origin/main"]["commitHash"]
+    fetched = _commit_from_another_clone(remote, tmp_path, "Von der Kollegin")
+
+    repo.git("fetch", "-q")
+    model.notifyRepositoryChanged()
+
+    assert ("refMoved", "remoteTracking", "origin/main", before, fetched) in _transitions(model)
+    assert _ghosts(model) == set()
+
+
+def test_push_force_moves_the_remote_tracking_branch(repo: GitRepo, remote: GitRepo) -> None:
+    _published(repo, remote)
+    pushed = _head(repo)
+    repo.git("commit", "-q", "--amend", "-m", "Erster Commit (korrigiert)")
+    amended = _head(repo)
+    model = _refreshed(repo)
+
+    repo.git("push", "-q", "-f")
+    model.notifyRepositoryChanged()
+
+    assert _transitions(model) == {("refMoved", "remoteTracking", "origin/main", pushed, amended)}
+
+
+def test_a_pushed_branch_adds_its_remote_tracking_branch(repo: GitRepo, remote: GitRepo) -> None:
+    _published(repo, remote)
+    repo.git("switch", "-q", "-c", "feature")
+    feature = repo.commit("Feature", file="feature.txt")
+    model = _refreshed(repo)
+
+    repo.git("push", "-q", "origin", "feature")
+    model.notifyRepositoryChanged()
+
+    assert _transitions(model) == {("refAdded", "remoteTracking", "origin/feature", "", feature)}
+
+
+def test_a_deleted_remote_tracking_branch_is_removed_and_fades_out(repo: GitRepo, remote: GitRepo) -> None:
+    _published(repo, remote)
+    repo.git("switch", "-q", "-c", "feature")
+    feature = repo.commit("Feature", file="feature.txt")
+    repo.git("push", "-q", "origin", "feature")
+    model = _refreshed(repo)
+    before = _remote_tracking(model)["origin/feature"]
+
+    repo.git("branch", "-q", "-dr", "origin/feature")
+    model.notifyRepositoryChanged()
+
+    assert _transitions(model) == {("refRemoved", "remoteTracking", "origin/feature", feature, "")}
+    assert "origin/feature" not in _remote_tracking(model)
+    assert rows(model, "leavingLabels") == [
+        {
+            "refType": "remoteTracking",
+            "name": "origin/feature",
+            "colorIndex": before["colorIndex"],
+            "column": before["column"],
+            "lane": before["lane"],
+            "stackIndex": before["stackIndex"],
+        }
+    ]
+
+
+def test_working_tree_change_after_a_push_keeps_ghost_commits(repo: GitRepo, remote: GitRepo) -> None:
+    _published(repo, remote)
+    local = repo.commit("Lokal", file="lokal.txt")
+    model = _refreshed(repo)
+    repo.git("commit", "-q", "--amend", "-m", "Lokal (korrigiert)")
+    model.notifyRepositoryChanged()
+
+    (repo.path / "lokal.txt").write_text("geändert\n")
+    model.notifyRepositoryChanged()
+
+    assert _ghosts(model) == {local}
+
+
 # --- The Live View never fetches -------------------------------------------------------
 
 

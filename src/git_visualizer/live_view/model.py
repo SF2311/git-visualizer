@@ -60,8 +60,9 @@ Interface:
   transitions). ``fileTransitions`` lists the same rows as plain maps (roles ``kind``,
   ``path``, ``fromArea``, ``toArea``, ``toHash``) for the view to start its file
   animations from; see :mod:`git_visualizer.live_view.file_transitions`.
-* ``leavingLabels`` — branch and tag labels removed by the most recent refresh that
-  added, moved or removed a ref, at their last position, for the view to fade out
+* ``leavingLabels`` — branch, tag and Remote-tracking Branch labels removed by the
+  most recent refresh that added, moved or removed a ref (``refType`` ``branch``,
+  ``tag`` or ``remoteTracking``), at their last position, for the view to fade out
   (roles: ``refType``, ``name``, ``colorIndex`` (-1 for tags), ``column``, ``lane``,
   ``stackIndex``).
 
@@ -329,11 +330,10 @@ class LiveViewModel(QObject):
         ]
         self._branch_labels.set_rows(branch_rows)
         self._tag_labels.set_rows(tag_rows)
-        self._remember_shown_labels(branch_rows, tag_rows)
         color_of = self._branch_colors.color_index
-        self._remote_tracking_labels.set_rows(
-            remote_tracking_rows(snapshot, layout, color_of, lambda h: _position(layout, h))
-        )
+        tracking_rows = remote_tracking_rows(snapshot, layout, color_of, lambda h: _position(layout, h))
+        self._remote_tracking_labels.set_rows(tracking_rows)
+        self._remember_shown_labels(branch_rows, tag_rows, tracking_rows)
         self._remotes.set_rows(remote_rows(snapshot, layout, color_of))
         self._lane_bands.set_rows(
             [
@@ -375,11 +375,15 @@ class LiveViewModel(QObject):
         self.transitionsChanged.emit()
 
     def _remember_shown_labels(
-        self, branch_rows: list[dict[str, Any]], tag_rows: list[dict[str, Any]]
+        self,
+        branch_rows: list[dict[str, Any]],
+        tag_rows: list[dict[str, Any]],
+        tracking_rows: list[dict[str, Any]],
     ) -> None:
         """Keep where each label is drawn now, so a removed one can fade out there."""
         labelled = [(RefType.BRANCH, row, row["colorIndex"]) for row in branch_rows]
         labelled += [(RefType.TAG, row, NO_COLOR) for row in tag_rows]
+        labelled += [(RefType.REMOTE_TRACKING, row, row["colorIndex"]) for row in tracking_rows]
         self._shown_labels = {
             (str(ref_type), row["name"]): {
                 "refType": str(ref_type),

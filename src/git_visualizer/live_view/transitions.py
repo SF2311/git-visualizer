@@ -43,6 +43,7 @@ class TransitionKind(StrEnum):
 class RefType(StrEnum):
     BRANCH = "branch"
     TAG = "tag"
+    REMOTE_TRACKING = "remoteTracking"
 
 
 @dataclass(frozen=True)
@@ -58,7 +59,8 @@ class Transition:
 
     @property
     def moves_ref(self) -> bool:
-        """Whether a ref label (branch or tag) appeared, moved or disappeared."""
+        """Whether a ref label (branch, tag or Remote-tracking Branch) appeared, moved or
+        disappeared."""
         return self.kind in (TransitionKind.REF_ADDED, TransitionKind.REF_MOVED, TransitionKind.REF_REMOVED)
 
     def file_row(self) -> dict[str, Any]:
@@ -95,6 +97,12 @@ def history_transitions(previous: RepositorySnapshot, current: RepositorySnapsho
 def _refs(snapshot: RepositorySnapshot) -> dict[tuple[RefType, str], str]:
     refs = {(RefType.BRANCH, branch.name): branch.commit_hash for branch in snapshot.branches}
     refs.update({(RefType.TAG, tag.name): tag.commit_hash for tag in snapshot.tags})
+    refs.update(
+        {
+            (RefType.REMOTE_TRACKING, tracking.name): tracking.commit_hash
+            for tracking in snapshot.remote_tracking_branches
+        }
+    )
     return refs
 
 

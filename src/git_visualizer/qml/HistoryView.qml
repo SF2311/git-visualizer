@@ -217,7 +217,7 @@ Item {
         }
     }
 
-    // Labels of removed branches and tags fade out where they were.
+    // Labels of removed branches, tags and Remote-tracking Branches fade out where they were.
     Repeater {
         model: root.liveView.leavingLabels
 
