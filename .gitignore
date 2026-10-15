@@ -1,0 +1,27 @@
+# Local issue tracker (not versioned)
+.scratch/
+
+# Python build output and caches
+__pycache__/
+*.py[cod]
+build/
+dist/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Qt / QML caches
+*.qmlc
+*.jsc
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
