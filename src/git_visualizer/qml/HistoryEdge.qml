@@ -14,10 +14,46 @@ Shape {
     property bool bendNearParent: true
     property bool dashed: false
     property color strokeColor: Theme.edge
+    // An edge to a newly added commit is drawn from the parent towards it on creation.
+    property bool grows: false
+    property real growth: 1
 
-    readonly property real bendWidth: Math.min(Math.abs(x2 - x1), Theme.columnWidth * 0.8)
-    readonly property real bendStartX: bendNearParent ? x1 : x2 - bendWidth
-    readonly property real bendEndX: bendNearParent ? x1 + bendWidth : x2
+    // Where the drawn edge ends: the child, or on its way there while growing.
+    readonly property real endX: x1 + (x2 - x1) * growth
+    readonly property real endY: y1 + (y2 - y1) * growth
+
+    Behavior on x1 {
+        NumberAnimation { duration: Motion.slideDuration; easing.type: Motion.slideEasing }
+    }
+    Behavior on y1 {
+        NumberAnimation { duration: Motion.slideDuration; easing.type: Motion.slideEasing }
+    }
+    Behavior on x2 {
+        NumberAnimation { duration: Motion.slideDuration; easing.type: Motion.slideEasing }
+    }
+    Behavior on y2 {
+        NumberAnimation { duration: Motion.slideDuration; easing.type: Motion.slideEasing }
+    }
+
+    NumberAnimation on growth {
+        id: growIn
+        running: false
+        from: 0
+        to: 1
+        duration: Motion.growDuration
+        easing.type: Easing.OutCubic
+    }
+
+    Component.onCompleted: {
+        if (grows) {
+            growth = 0
+            growIn.start()
+        }
+    }
+
+    readonly property real bendWidth: Math.min(Math.abs(endX - x1), Theme.columnWidth * 0.8)
+    readonly property real bendStartX: bendNearParent ? x1 : endX - bendWidth
+    readonly property real bendEndX: bendNearParent ? x1 + bendWidth : endX
 
     preferredRendererType: Shape.CurveRenderer
 
@@ -35,12 +71,12 @@ Shape {
         PathLine { x: root.bendStartX; y: root.y1 }
         PathCubic {
             x: root.bendEndX
-            y: root.y2
+            y: root.endY
             control1X: (root.bendStartX + root.bendEndX) / 2
             control1Y: root.y1
             control2X: (root.bendStartX + root.bendEndX) / 2
-            control2Y: root.y2
+            control2Y: root.endY
         }
-        PathLine { x: root.x2; y: root.y2 }
+        PathLine { x: root.endX; y: root.endY }
     }
 }

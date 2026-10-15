@@ -20,10 +20,10 @@ Interface:
   ``commitHash``, ``column``, ``lane``, ``colorIndex``, ``stackIndex``, ``hasHead``,
   ``upstream`` ("" without Upstream), ``ahead``/``behind`` (-1 without Upstream or
   when the Upstream's ref is gone)).
-* ``remoteTrackingLabels`` — list model, one row per Remote-tracking Branch (roles:
-  ``name`` (e.g. ``origin/main``), ``remote``, ``commitHash``, ``column``, ``lane``,
-  ``colorIndex`` (its local branch's when it is that branch's Upstream, else -1),
-  ``stackIndex``, ``isUpstream``).
+* ``remoteTrackingLabels`` — list model, one row per Remote-tracking Branch, keyed by
+  name (roles: ``name`` (e.g. ``origin/main``), ``remote``, ``commitHash``,
+  ``column``, ``lane``, ``colorIndex`` (its local branch's when it is that branch's
+  Upstream, else -1), ``stackIndex``, ``isUpstream``).
 * ``remotes`` — list model, one row per Remote box (roles: ``name``, ``url``,
   ``shortUrl``, ``lastFetched`` (Unix seconds, 0 if never fetched),
   ``trackingBranches`` (list of ``{name, colorIndex}``)). ``lastFetchText(lastFetched,
@@ -43,6 +43,28 @@ Interface:
   ``deleted``, ``renamed`` —, ``originalPath`` ("" unless renamed), ``conflicted``).
   A partially staged file appears in both. The HEAD commit (``headCommitHash``) is
   highlighted in the History as the third area.
+* ``transitions`` — list model of what changed between the previous and the current
+  snapshot (roles: ``kind``, ``refType``, ``refName``, ``fromHash``, ``toHash``; see
+  :class:`~git_visualizer.live_view.transitions.TransitionKind`). Empty after the
+  first refresh and after a refresh that changed nothing; a coalesced burst of git
+  commands yields only its net difference. ``addedCommitHashes`` lists the hashes of
+  its ``commitAdded`` transitions. Both change before the History lists are updated
+  and notify ``transitionsChanged``.
+* ``leavingLabels`` — branch and tag labels removed by the most recent refresh that
+  added, moved or removed a ref, at their last position, for the view to fade out
+  (roles: ``refType``, ``name``, ``colorIndex`` (-1 for tags), ``column``, ``lane``,
+  ``stackIndex``).
+
+The History lists (``commits``, ``edges``, ``branchLabels``, ``tagLabels``,
+``laneBands``) are updated row by row, keyed by commit hash, parent link, label name
+and lane owner, so that QML delegates persist across refreshes and animate.
+* In-progress Operation (merge, rebase, cherry-pick, revert): ``operationKind``
+  ("" when none, else ``merge``, ``rebase``, ``cherry-pick`` or ``revert``),
+  ``operationStep``/``operationTotal`` (rebase progress, 0 when unknown or not a
+  rebase), ``conflictCount`` (unmerged files) and ``operationBanner``, the German
+  banner text ("Merge läuft – 2 Konflikte", "Rebase 2/5"; "" when none). Conflicted
+  files are listed in ``workingTreeFiles`` with ``conflicted``; during a paused rebase
+  HEAD is detached.
 
 ``colorIndex`` values index ``Theme.branchColors``; a branch keeps its color as long
 as it exists.
@@ -59,6 +81,7 @@ from git_visualizer.git_reader import DEFAULT_MAX_COMMITS, NotARepositoryError, 
 from git_visualizer.history_layout import HistoryLayout, commit_columns, layout_history
 from git_visualizer.live_view.branch_colors import BranchColors
 from git_visualizer.live_view.list_model import RowListModel
+from git_visualizer.live_view.operation_banner import banner_text
 from git_visualizer.live_view.remotes import (
     REMOTE_ROLES,
     REMOTE_TRACKING_ROLES,
@@ -67,9 +90,17 @@ from git_visualizer.live_view.remotes import (
     remote_tracking_rows,
 )
 from git_visualizer.live_view.three_areas import FILE_ROLES, file_rows
+from git_visualizer.live_view.transitions import (
+    TRANSITION_ROLES,
+    RefType,
+    Transition,
+    TransitionKind,
+    history_transitions,
+)
 from git_visualizer.snapshot import RepositorySnapshot
 
 NO_COLOR = -1
+LEAVING_LABEL_ROLES = ("refType", "name", "colorIndex", "column", "lane", "stackIndex")
 
 
 class LiveViewModel(QObject):
@@ -77,6 +108,8 @@ class LiveViewModel(QObject):
     columnCountChanged = Signal()
     historyChanged = Signal()
     isRepositoryChanged = Signal()
+    transitionsChanged = Signal()
+    inProgressOperationChanged = Signal()
 
     def __init__(
         self,
@@ -92,7 +125,9 @@ class LiveViewModel(QObject):
         self._branch_colors = BranchColors()
         self._layout = layout_history(self._snapshot, [])
         self._commits = RowListModel(
-            ("hash", "shortHash", "subject", "column", "lane", "colorIndex", "isMerge"), self
+            ("hash", "shortHash", "subject", "column", "lane", "colorIndex", "isMerge"),
+            self,
+            key_roles=("hash",),
         )
         self._edges = RowListModel(
             (
@@ -107,6 +142,7 @@ class LiveViewModel(QObject):
                 "firstParent",
             ),
             self,
+            key_roles=("childHash", "parentHash"),
         )
         self._branch_labels = RowListModel(
             (
@@ -122,16 +158,26 @@ class LiveViewModel(QObject):
                 "behind",
             ),
             self,
+            key_roles=("name",),
         )
-        self._tag_labels = RowListModel(("name", "commitHash", "column", "lane", "stackIndex"), self)
+        self._tag_labels = RowListModel(
+            ("name", "commitHash", "column", "lane", "stackIndex"), self, key_roles=("name",)
+        )
         self._lane_bands = RowListModel(
-            ("lane", "branch", "colorIndex", "firstColumn", "lastColumn"), self
+            ("lane", "branch", "colorIndex", "firstColumn", "lastColumn"),
+            self,
+            key_roles=("lane", "branch"),
         )
+        self._has_read = False
+        self._transitions = RowListModel(TRANSITION_ROLES, self)
+        self._added_commit_hashes: list[str] = []
+        self._leaving_labels = RowListModel(LEAVING_LABEL_ROLES, self, key_roles=("refType", "name"))
+        self._shown_labels: dict[tuple[str, str], dict[str, Any]] = {}
         self._is_repository = False
         self._working_tree_files = RowListModel(FILE_ROLES, self)
-        self._remote_tracking_labels = RowListModel(REMOTE_TRACKING_ROLES, self)
-        self._remotes = RowListModel(REMOTE_ROLES, self)
         self._staging_area_files = RowListModel(FILE_ROLES, self)
+        self._remote_tracking_labels = RowListModel(REMOTE_TRACKING_ROLES, self, key_roles=("name",))
+        self._remotes = RowListModel(REMOTE_ROLES, self, key_roles=("name",))
 
     @Slot()
     def notifyRepositoryChanged(self) -> None:
@@ -150,6 +196,9 @@ class LiveViewModel(QObject):
             self.isRepositoryChanged.emit()
 
     def _apply(self, snapshot: RepositorySnapshot) -> None:
+        transitions = history_transitions(self._snapshot, snapshot) if self._has_read else []
+        self._has_read = True
+        self._set_transitions(transitions)
         self._snapshot = snapshot
         # New branches are ranked by how far left their tip is: older lines get upper lanes.
         columns = commit_columns(snapshot.commits)
@@ -190,33 +239,37 @@ class LiveViewModel(QObject):
                 for index, parent in enumerate(commit.parents)
             ]
         )
-        self._branch_labels.set_rows(
-            [
-                {
-                    "name": branch.name,
-                    "commitHash": branch.commit_hash,
-                    **_position(layout, branch.commit_hash),
-                    "colorIndex": self._branch_colors.color_index(branch.name),
-                    "stackIndex": layout.branch_slots[branch.name],
-                    "hasHead": branch.name == snapshot.head.branch_name,
-                    "upstream": branch.upstream or "",
-                    "ahead": -1 if branch.ahead is None else branch.ahead,
-                    "behind": -1 if branch.behind is None else branch.behind,
-                }
-                for branch in snapshot.branches
-            ]
+        branch_rows = [
+            {
+                "name": branch.name,
+                "commitHash": branch.commit_hash,
+                **_position(layout, branch.commit_hash),
+                "colorIndex": self._branch_colors.color_index(branch.name),
+                "stackIndex": layout.branch_slots[branch.name],
+                "hasHead": branch.name == snapshot.head.branch_name,
+                "upstream": branch.upstream or "",
+                "ahead": -1 if branch.ahead is None else branch.ahead,
+                "behind": -1 if branch.behind is None else branch.behind,
+            }
+            for branch in snapshot.branches
+        ]
+        tag_rows = [
+            {
+                "name": tag.name,
+                "commitHash": tag.commit_hash,
+                **_position(layout, tag.commit_hash),
+                "stackIndex": layout.tag_slots[tag.name],
+            }
+            for tag in snapshot.tags
+        ]
+        self._branch_labels.set_rows(branch_rows)
+        self._tag_labels.set_rows(tag_rows)
+        self._remember_shown_labels(branch_rows, tag_rows)
+        color_of = self._branch_colors.color_index
+        self._remote_tracking_labels.set_rows(
+            remote_tracking_rows(snapshot, layout, color_of, lambda h: _position(layout, h))
         )
-        self._tag_labels.set_rows(
-            [
-                {
-                    "name": tag.name,
-                    "commitHash": tag.commit_hash,
-                    **_position(layout, tag.commit_hash),
-                    "stackIndex": layout.tag_slots[tag.name],
-                }
-                for tag in snapshot.tags
-            ]
-        )
+        self._remotes.set_rows(remote_rows(snapshot, layout, color_of))
         self._lane_bands.set_rows(
             [
                 {
@@ -229,16 +282,65 @@ class LiveViewModel(QObject):
                 for band in layout.bands
             ]
         )
-        color_of = self._branch_colors.color_index
-        self._remote_tracking_labels.set_rows(
-            remote_tracking_rows(snapshot, layout, color_of, lambda h: _position(layout, h))
-        )
-        self._remotes.set_rows(remote_rows(snapshot, layout, color_of))
         self.historyChanged.emit()
         self._working_tree_files.set_rows(file_rows(snapshot.working_tree))
         self._staging_area_files.set_rows(file_rows(snapshot.staging_area))
+        self.inProgressOperationChanged.emit()
         self.headChanged.emit()
         self.columnCountChanged.emit()
+
+    def _set_transitions(self, transitions: list[Transition]) -> None:
+        """Expose ``transitions``; call before the History lists change."""
+        if any(transition.moves_ref for transition in transitions):
+            self._leaving_labels.set_rows(
+                [
+                    self._shown_labels[(transition.ref_type, transition.ref_name)]
+                    for transition in transitions
+                    if transition.kind is TransitionKind.REF_REMOVED
+                    and (transition.ref_type, transition.ref_name) in self._shown_labels
+                ]
+            )
+        self._added_commit_hashes = [
+            transition.to_hash for transition in transitions if transition.kind is TransitionKind.COMMIT_ADDED
+        ]
+        self._transitions.set_rows([transition.row() for transition in transitions])
+        self.transitionsChanged.emit()
+
+    def _remember_shown_labels(
+        self, branch_rows: list[dict[str, Any]], tag_rows: list[dict[str, Any]]
+    ) -> None:
+        """Keep where each label is drawn now, so a removed one can fade out there."""
+        labelled = [(RefType.BRANCH, row, row["colorIndex"]) for row in branch_rows]
+        labelled += [(RefType.TAG, row, NO_COLOR) for row in tag_rows]
+        self._shown_labels = {
+            (str(ref_type), row["name"]): {
+                "refType": str(ref_type),
+                "name": row["name"],
+                "colorIndex": color,
+                "column": row["column"],
+                "lane": row["lane"],
+                "stackIndex": row["stackIndex"],
+            }
+            for ref_type, row, color in labelled
+            if row["column"] >= 0
+        }
+
+    # --- History changes ---------------------------------------------------------
+
+    def _get_transitions(self) -> RowListModel:
+        return self._transitions
+
+    transitions = Property(QObject, _get_transitions, constant=True)
+
+    def _get_added_commit_hashes(self) -> list[str]:
+        return list(self._added_commit_hashes)
+
+    addedCommitHashes = Property(list, _get_added_commit_hashes, notify=transitionsChanged)
+
+    def _get_leaving_labels(self) -> RowListModel:
+        return self._leaving_labels
+
+    leavingLabels = Property(QObject, _get_leaving_labels, constant=True)
 
     # --- Three Areas -------------------------------------------------------------
 
@@ -268,6 +370,37 @@ class LiveViewModel(QObject):
     def lastFetchText(self, last_fetched: float, now: float) -> str:
         """German relative last-fetch time; QML passes ``now`` so the text stays current."""
         return last_fetch_text(last_fetched, now)
+
+    # --- In-progress Operation ---------------------------------------------------
+
+    def _get_operation_kind(self) -> str:
+        operation = self._snapshot.in_progress_operation
+        return "" if operation is None else operation.kind.value
+
+    operationKind = Property(str, _get_operation_kind, notify=inProgressOperationChanged)
+
+    def _get_operation_step(self) -> int:
+        operation = self._snapshot.in_progress_operation
+        return 0 if operation is None else operation.step
+
+    operationStep = Property(int, _get_operation_step, notify=inProgressOperationChanged)
+
+    def _get_operation_total(self) -> int:
+        operation = self._snapshot.in_progress_operation
+        return 0 if operation is None else operation.total
+
+    operationTotal = Property(int, _get_operation_total, notify=inProgressOperationChanged)
+
+    def _get_conflict_count(self) -> int:
+        operation = self._snapshot.in_progress_operation
+        return 0 if operation is None else operation.conflict_count
+
+    conflictCount = Property(int, _get_conflict_count, notify=inProgressOperationChanged)
+
+    def _get_operation_banner(self) -> str:
+        return banner_text(self._snapshot.in_progress_operation)
+
+    operationBanner = Property(str, _get_operation_banner, notify=inProgressOperationChanged)
 
     # --- Repository selection ---------------------------------------------------
 

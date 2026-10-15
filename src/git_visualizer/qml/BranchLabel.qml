@@ -20,6 +20,14 @@ Rectangle {
     radius: 8
     color: Theme.branchColor(colorIndex)
 
+    // A moved branch slides to its new commit (e.g. a fast-forward merge).
+    Behavior on x {
+        NumberAnimation { duration: Motion.slideDuration; easing.type: Motion.slideEasing }
+    }
+    Behavior on y {
+        NumberAnimation { duration: Motion.slideDuration; easing.type: Motion.slideEasing }
+    }
+
     Row {
         anchors.centerIn: parent
         spacing: root.gap

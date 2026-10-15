@@ -64,6 +64,16 @@ Item {
             height: Theme.commitRadius * 2 + 20 * Theme.zoom
             radius: height / 2
             color: Qt.alpha(Theme.branchColor(colorIndex), Theme.dark ? 0.16 : 0.10)
+
+            Behavior on x {
+                NumberAnimation { duration: Motion.slideDuration; easing.type: Motion.slideEasing }
+            }
+            Behavior on y {
+                NumberAnimation { duration: Motion.slideDuration; easing.type: Motion.slideEasing }
+            }
+            Behavior on width {
+                NumberAnimation { duration: Motion.slideDuration; easing.type: Motion.slideEasing }
+            }
         }
     }
 
@@ -71,6 +81,7 @@ Item {
         model: root.liveView.edges
 
         HistoryEdge {
+            required property string childHash
             required property int childColumn
             required property int childLane
             required property int parentColumn
@@ -85,6 +96,7 @@ Item {
             bendNearParent: firstParent
             dashed: toCollapsed
             strokeColor: Theme.branchColor(colorIndex)
+            grows: root.liveView.addedCommitHashes.indexOf(childHash) >= 0
         }
     }
 
@@ -137,6 +149,7 @@ Item {
             required property int column
             required property int lane
             isHead: hash === root.liveView.headCommitHash
+            grows: root.liveView.addedCommitHashes.indexOf(hash) >= 0
             centerX: root.columnCenterX(column)
             centerY: root.laneCenterY(lane)
         }
@@ -176,6 +189,19 @@ Item {
             required property int lane
             required property int stackIndex
             visible: column >= 0
+            x: root.columnCenterX(column) - width / 2
+            y: root.slotY(lane, stackIndex)
+        }
+    }
+
+    // Labels of removed branches and tags fade out where they were.
+    Repeater {
+        model: root.liveView.leavingLabels
+
+        LeavingLabel {
+            required property int column
+            required property int lane
+            required property int stackIndex
             x: root.columnCenterX(column) - width / 2
             y: root.slotY(lane, stackIndex)
         }

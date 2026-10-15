@@ -17,6 +17,14 @@ Rectangle {
     border.color: outline
     border.width: Theme.remoteTrackingBorderWidth
 
+    // Moves only after the lecturer fetches, pulls or pushes; then it slides.
+    Behavior on x {
+        NumberAnimation { duration: Motion.slideDuration; easing.type: Motion.slideEasing }
+    }
+    Behavior on y {
+        NumberAnimation { duration: Motion.slideDuration; easing.type: Motion.slideEasing }
+    }
+
     Text {
         id: labelText
         anchors.centerIn: parent

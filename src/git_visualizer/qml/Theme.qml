@@ -83,4 +83,13 @@ QtObject {
     readonly property int remoteDetailFontSize: Math.round(16 * zoom)
     readonly property int remoteChipFontSize: Math.round(16 * zoom)
     readonly property int aheadBehindFontSize: Math.round(17 * zoom)
+
+    // In-progress Operation banner (ticket 08)
+    readonly property color bannerFill: dark ? "#b07800" : "#a86b00"
+    readonly property color bannerConflictFill: dark ? "#e03131" : "#d62828"
+    readonly property color bannerText: "#ffffff"
+    readonly property int bannerFontSize: Math.round(26 * zoom)
+    readonly property real bannerHeight: 56 * zoom
+    readonly property real bannerPadding: 32 * zoom
+    readonly property real bannerMargin: 16 * zoom
 }

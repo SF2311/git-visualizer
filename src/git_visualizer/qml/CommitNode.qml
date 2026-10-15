@@ -14,12 +14,47 @@ Item {
     // The HEAD commit is highlighted: the History is the third of the Three Areas.
     property bool isHead: false
 
+    // A commit the model reports as added (addedCommitHashes) grows in when created.
+    property bool grows: false
+    property real growth: 1
+
     readonly property color laneColor: Theme.branchColor(colorIndex)
 
     x: centerX - Theme.columnWidth / 2
     y: centerY - Theme.commitRadius
     width: Theme.columnWidth
     height: subjectText.y + subjectText.height
+    opacity: Math.min(1, growth * 1.5)
+    transform: Scale {
+        origin.x: root.width / 2
+        origin.y: Theme.commitRadius
+        xScale: root.growth
+        yScale: root.growth
+    }
+
+    // Existing commits slide when the layout shifts (new lanes, History scrolling left).
+    Behavior on centerX {
+        NumberAnimation { duration: Motion.slideDuration; easing.type: Motion.slideEasing }
+    }
+    Behavior on centerY {
+        NumberAnimation { duration: Motion.slideDuration; easing.type: Motion.slideEasing }
+    }
+
+    NumberAnimation on growth {
+        id: growIn
+        running: false
+        from: 0
+        to: 1
+        duration: Motion.growDuration
+        easing.type: Easing.OutBack
+    }
+
+    Component.onCompleted: {
+        if (grows) {
+            growth = 0
+            growIn.start()
+        }
+    }
 
     // Soft shadow beneath the ring.
     Rectangle {

@@ -25,7 +25,9 @@ Window {
         anchors.left: parent.left
         anchors.right: remoteBoxes.left
         anchors.top: parent.top
-        height: parent.height * 2 / 3
+        // Room for the In-progress Operation banner, so it never covers the History.
+        anchors.topMargin: banner.reservedHeight
+        height: parent.height * 2 / 3 - banner.reservedHeight
     }
 
     RemoteBoxes {
@@ -34,7 +36,7 @@ Window {
         visible: window.liveView.isRepository
         width: visible ? implicitWidth : 0
         anchors.right: parent.right
-        anchors.top: parent.top
+        anchors.top: history.top
         height: history.height
     }
 
@@ -45,6 +47,15 @@ Window {
         anchors.right: parent.right
         anchors.top: history.bottom
         anchors.bottom: parent.bottom
+    }
+
+    OperationBanner {
+        id: banner
+        text: window.liveView.operationBanner
+        conflictCount: window.liveView.conflictCount
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: Theme.bannerMargin
     }
 
     WaitingForRepository {
