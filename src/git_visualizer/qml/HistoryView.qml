@@ -32,6 +32,20 @@ Item {
     }
     readonly property real contentHeight: laneTops[laneTops.length - 1]
     readonly property real originY: Math.max(margin / 2, (height - contentHeight) / 2)
+    // New commits that files are flying into; they grow in once the files arrived.
+    readonly property var filesCommittedInto: root.liveView.fileTransitions
+        .filter(transition => transition.kind === "fileCommitted")
+        .map(transition => transition.toHash)
+
+    // Center of the commit node ``hash`` (null when not shown), for files flying into it.
+    function commitCenter(hash) {
+        for (let i = 0; i < commitNodes.count; ++i) {
+            const node = commitNodes.itemAt(i)
+            if (node && node.hash === hash)
+                return Qt.point(node.centerX, node.centerY)
+        }
+        return null
+    }
 
     function columnCenterX(column) {
         return originX + column * Theme.columnWidth + Theme.columnWidth / 2
@@ -97,6 +111,7 @@ Item {
             dashed: toCollapsed
             strokeColor: Theme.branchColor(colorIndex)
             grows: root.liveView.addedCommitHashes.indexOf(childHash) >= 0
+            growDelay: root.filesCommittedInto.indexOf(childHash) >= 0 ? Motion.commitGrowthDelay : 0
         }
     }
 
@@ -142,6 +157,7 @@ Item {
     }
 
     Repeater {
+        id: commitNodes
         model: root.liveView.commits
 
         CommitNode {
@@ -150,6 +166,7 @@ Item {
             required property int lane
             isHead: hash === root.liveView.headCommitHash
             grows: root.liveView.addedCommitHashes.indexOf(hash) >= 0
+            growDelay: root.filesCommittedInto.indexOf(hash) >= 0 ? Motion.commitGrowthDelay : 0
             centerX: root.columnCenterX(column)
             centerY: root.laneCenterY(lane)
         }

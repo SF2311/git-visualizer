@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 from conftest import GitRepo
 from PySide6.QtCore import QtMsgType, QMessageLogContext, qInstallMessageHandler
 from PySide6.QtGui import QGuiApplication
+from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
 
 from git_visualizer.app import create_engine
@@ -115,6 +117,50 @@ def test_qml_view_animates_history_transitions_without_warnings(
         QTest.qWait(120)
 
     assert engine.rootObjects(), "Main.qml did not load"
+    assert qt_messages == []
+    for root in engine.rootObjects():
+        root.deleteLater()
+    qapp.processEvents()
+
+
+def _flights(engine: Any) -> list[Any]:
+    [window] = engine.rootObjects()
+    layer = window.findChild(QQuickItem, "fileFlights")
+    assert isinstance(layer, QQuickItem)
+    return [child for child in layer.childItems() if child.property("path")]
+
+
+def test_qml_view_animates_file_transitions_without_warnings(
+    repo: GitRepo, qapp: QGuiApplication, qt_messages: list[str]
+) -> None:
+    repo.commit("Erster Commit")
+    repo.write("a.txt", "a\n")
+    repo.write("b.txt", "b\n")
+    model = LiveViewModel(repo.path)
+    model.notifyRepositoryChanged()
+    engine = create_engine(model)
+    QTest.qWait(50)
+
+    repo.git("add", "a.txt", "b.txt")
+    model.notifyRepositoryChanged()
+    QTest.qWait(50)
+    assert sorted(flight.property("path") for flight in _flights(engine)) == ["a.txt", "b.txt"]
+
+    steps: list[Callable[[], object]] = [
+        lambda: repo.write("a.txt", "a2\n"),
+        lambda: repo.git("restore", "--staged", "b.txt"),
+        lambda: repo.git("add", "a.txt"),
+        lambda: repo.git("commit", "-q", "-m", "A"),
+        lambda: repo.write("README.md", "neu\n"),
+        lambda: repo.git("commit", "-q", "-a", "-m", "Alles"),
+    ]
+    for step in steps:
+        step()
+        model.notifyRepositoryChanged()
+        QTest.qWait(120)
+    QTest.qWait(2000)  # longer than the slowest flight (Motion.commitGrowthDelay)
+
+    assert _flights(engine) == []
     assert qt_messages == []
     for root in engine.rootObjects():
         root.deleteLater()

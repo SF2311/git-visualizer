@@ -17,6 +17,8 @@ Item {
     // A commit the model reports as added (addedCommitHashes) grows in when created.
     property bool grows: false
     property real growth: 1
+    // Wait before growing, e.g. while committed files fly into the node (ticket 06).
+    property int growDelay: 0
 
     readonly property color laneColor: Theme.branchColor(colorIndex)
 
@@ -40,13 +42,18 @@ Item {
         NumberAnimation { duration: Motion.slideDuration; easing.type: Motion.slideEasing }
     }
 
-    NumberAnimation on growth {
+    SequentialAnimation {
         id: growIn
         running: false
-        from: 0
-        to: 1
-        duration: Motion.growDuration
-        easing.type: Easing.OutBack
+        PauseAnimation { duration: root.growDelay }
+        NumberAnimation {
+            target: root
+            property: "growth"
+            from: 0
+            to: 1
+            duration: Motion.growDuration
+            easing.type: Easing.OutBack
+        }
     }
 
     Component.onCompleted: {

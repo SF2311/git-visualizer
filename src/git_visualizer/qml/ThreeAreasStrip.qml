@@ -8,6 +8,8 @@ Rectangle {
     required property var liveView
 
     readonly property real padding: 28
+    readonly property alias workingTreeColumn: workingTreeColumn
+    readonly property alias stagingAreaColumn: stagingAreaColumn
 
     color: Theme.stripBackground
 
@@ -20,6 +22,7 @@ Rectangle {
     }
 
     FileColumn {
+        id: workingTreeColumn
         title: "Working Tree"
         files: root.liveView.workingTreeFiles
         x: root.padding
@@ -37,6 +40,7 @@ Rectangle {
     }
 
     FileColumn {
+        id: stagingAreaColumn
         title: "Staging Bereich"
         files: root.liveView.stagingAreaFiles
         x: root.width / 2 + root.padding / 2
