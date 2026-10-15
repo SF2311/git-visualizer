@@ -191,3 +191,22 @@ def test_escape_clears_ghost_commits_and_is_listed(repo: GitRepo, view: LoadedVi
     assert live_view.property("ghostCommitHashes") == []
     listed = view.control("shortcuts").toVariant()
     assert "Esc" in [entry["keys"] for entry in listed]
+
+
+def test_l_toggles_the_legend_and_is_listed(view: LoadedView) -> None:
+    assert view.control("legendVisible") is False
+    legend = view.window.findChild(QObject, "legend")
+    assert legend is not None, "Legend not found"
+    assert legend.property("visible") is False
+
+    view.press(Qt.Key.Key_L)
+    assert view.control("legendVisible") is True
+    assert legend.property("visible") is True
+
+    view.press(Qt.Key.Key_L)
+    assert view.control("legendVisible") is False
+    assert legend.property("visible") is False
+
+    listed = view.control("shortcuts").toVariant()
+    entry = next(entry for entry in listed if entry["keys"] == "L")
+    assert "Legende" in entry["description"]
