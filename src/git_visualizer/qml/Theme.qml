@@ -1,25 +1,34 @@
 pragma Singleton
 import QtQuick
 
-// Colors and sizes of the Live View. Light theme only for now (ticket 10 adds dark + zoom).
+// Colors and sizes of the Live View. `dark` and `zoom` are set by ProjectorControls
+// (keys T and Ctrl +/−); every size below scales with `zoom`.
 QtObject {
-    readonly property color background: "#fafaf7"
-    readonly property color text: "#1d2330"
-    readonly property color mutedText: "#6b7280"
-    readonly property color edge: "#9aa3b2"
-    readonly property color commitFill: "#ffffff"
-    readonly property color commitBorder: "#3b6fd8"
-    readonly property color branchFill: "#3b6fd8"
+    property bool dark: false
+    property real zoom: 1.0
+
+    readonly property color background: dark ? "#161a22" : "#fafaf7"
+    readonly property color text: dark ? "#e8ebf2" : "#1d2330"
+    readonly property color mutedText: dark ? "#9aa3b2" : "#6b7280"
+    readonly property color edge: dark ? "#5c6577" : "#9aa3b2"
+    readonly property color commitFill: dark ? "#232937" : "#ffffff"
+    readonly property color commitBorder: dark ? "#6f9cf5" : "#3b6fd8"
+    readonly property color branchFill: dark ? "#4d7fe6" : "#3b6fd8"
     readonly property color branchText: "#ffffff"
-    readonly property color headFill: "#d9480f"
+    readonly property color headFill: dark ? "#f0652a" : "#d9480f"
     readonly property color headText: "#ffffff"
+    readonly property color overlayScrim: dark ? "#cc000000" : "#99000000"
+    readonly property color overlayFill: dark ? "#232937" : "#ffffff"
+    readonly property color keyFill: dark ? "#323a4b" : "#eef1f6"
 
-    readonly property real columnWidth: 220
-    readonly property real commitRadius: 24
-    readonly property real labelHeight: 40
-    readonly property real labelSpacing: 10
+    readonly property real columnWidth: 220 * zoom
+    readonly property real commitRadius: 24 * zoom
+    readonly property real labelHeight: 40 * zoom
+    readonly property real labelSpacing: 10 * zoom
 
-    readonly property int hashFontSize: 15
-    readonly property int subjectFontSize: 22
-    readonly property int labelFontSize: 20
+    readonly property int hashFontSize: Math.round(15 * zoom)
+    readonly property int subjectFontSize: Math.round(22 * zoom)
+    readonly property int labelFontSize: Math.round(20 * zoom)
+    readonly property int overlayTitleFontSize: Math.round(30 * zoom)
+    readonly property int overlayFontSize: Math.round(22 * zoom)
 }

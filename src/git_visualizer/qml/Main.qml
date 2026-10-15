@@ -18,12 +18,17 @@ Window {
         onActivated: window.liveView.notifyRepositoryChanged()
     }
 
-    HistoryView {
+    FittedHistory {
         id: history
         liveView: window.liveView
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
         height: parent.height * 2 / 3
+    }
+
+    // Keep last: its shortcut overlay must cover everything above.
+    ProjectorControls {
+        anchors.fill: parent
     }
 }
