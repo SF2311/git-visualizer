@@ -9,6 +9,7 @@ In-progress Operation.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 
 
 @dataclass(frozen=True)
@@ -57,6 +58,30 @@ class Head:
         return self.branch_name is None
 
 
+class ChangeKind(StrEnum):
+    """Kind of change of a file in the Working Tree or the Staging Area."""
+
+    UNTRACKED = "untracked"
+    NEW = "new"
+    MODIFIED = "modified"
+    DELETED = "deleted"
+    RENAMED = "renamed"
+
+
+@dataclass(frozen=True)
+class FileEntry:
+    """A changed file listed in the Working Tree or the Staging Area.
+
+    ``original_path`` is set for renames (the path before the rename). ``conflicted``
+    marks an unmerged file during an In-progress Operation (listed in the Working Tree).
+    """
+
+    path: str
+    change: ChangeKind
+    original_path: str | None = None
+    conflicted: bool = False
+
+
 @dataclass(frozen=True)
 class RepositorySnapshot:
     """``commits`` are the shown part of the History, newest first (children before
@@ -68,6 +93,8 @@ class RepositorySnapshot:
     head: Head
     tags: tuple[Tag, ...] = ()
     hidden_commit_count: int = 0
+    working_tree: tuple[FileEntry, ...] = ()
+    staging_area: tuple[FileEntry, ...] = ()
 
     @classmethod
     def empty(cls) -> RepositorySnapshot:

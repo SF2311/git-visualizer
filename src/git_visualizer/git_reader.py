@@ -10,6 +10,7 @@ import os
 import subprocess
 from pathlib import Path
 
+from git_visualizer.file_status import STATUS_ARGS, parse_status
 from git_visualizer.snapshot import Branch, Commit, Head, RepositorySnapshot, Tag
 
 DEFAULT_MAX_COMMITS = 30
@@ -44,12 +45,15 @@ def read_snapshot(
     if head.commit_hash is not None:
         tips.append(head.commit_hash)
     commits, hidden_commit_count = _read_commits(git, tips, max_commits=max_commits)
+    working_tree, staging_area = parse_status(git.run(*STATUS_ARGS))
     return RepositorySnapshot(
         commits=commits,
         branches=branches,
         head=head,
         tags=tags,
         hidden_commit_count=hidden_commit_count,
+        working_tree=working_tree,
+        staging_area=staging_area,
     )
 
 

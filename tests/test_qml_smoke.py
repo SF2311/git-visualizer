@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from conftest import GitRepo
@@ -31,6 +32,9 @@ def test_qml_view_loads_without_warnings(
 ) -> None:
     repo.commit("Erster Commit")
     repo.commit("Add login")
+    repo.write("login.py", "v1\n")
+    repo.git("add", "login.py")
+    repo.write("login.py", "v2\n")  # Working Tree and Staging Area both populated
     model = LiveViewModel(repo.path)
     model.notifyRepositoryChanged()
 
@@ -57,6 +61,22 @@ def test_qml_view_loads_a_branching_history_without_warnings(
     repo.git("merge", "-q", "--no-edit", "feature")
     repo.git("checkout", "-q", "--detach", "feature")
     model = LiveViewModel(repo.path, max_commits=4)
+    model.notifyRepositoryChanged()
+
+    engine = create_engine(model)
+    qapp.processEvents()
+
+    assert engine.rootObjects(), "Main.qml did not load"
+    assert qt_messages == []
+    for root in engine.rootObjects():
+        root.deleteLater()
+    qapp.processEvents()
+
+
+def test_qml_view_loads_without_warnings_in_a_non_repository_folder(
+    tmp_path: Path, qapp: QGuiApplication, qt_messages: list[str]
+) -> None:
+    model = LiveViewModel(tmp_path)
     model.notifyRepositoryChanged()
 
     engine = create_engine(model)

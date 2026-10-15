@@ -11,6 +11,8 @@ Item {
     required property bool isMerge
     property real centerX
     property real centerY
+    // The HEAD commit is highlighted: the History is the third of the Three Areas.
+    property bool isHead: false
 
     readonly property color laneColor: Theme.branchColor(colorIndex)
 
@@ -22,12 +24,23 @@ Item {
     // Soft shadow beneath the ring.
     Rectangle {
         x: circle.x
-        y: circle.y + 3
+        y: circle.y + 3 * Theme.zoom
         width: circle.width
         height: circle.height
         radius: width / 2
         color: Theme.commitShadow
         opacity: 0.12
+    }
+
+    Rectangle {
+        visible: root.isHead
+        anchors.centerIn: circle
+        width: circle.width + 18
+        height: width
+        radius: width / 2
+        color: "transparent"
+        border.color: Theme.headCommitHalo
+        border.width: 4
     }
 
     Rectangle {
@@ -38,7 +51,7 @@ Item {
         radius: width / 2
         color: Theme.commitFill
         border.color: root.laneColor
-        border.width: 6
+        border.width: 6 * Theme.zoom
 
         Rectangle {
             visible: root.isMerge
@@ -53,7 +66,7 @@ Item {
     Rectangle {
         id: hashChip
         anchors.top: circle.bottom
-        anchors.topMargin: 8
+        anchors.topMargin: 8 * Theme.zoom
         anchors.horizontalCenter: parent.horizontalCenter
         width: hashText.implicitWidth + 12
         height: hashText.implicitHeight + 4

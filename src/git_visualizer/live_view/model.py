@@ -4,7 +4,10 @@ Interface:
 
 * ``LiveViewModel(path, max_commits=30)`` — ``max_commits`` is the display limit N.
 * ``notifyRepositoryChanged()`` — re-read the Observed Repository and update all
-  exposed properties (called by the manual refresh key, later by the watcher).
+  exposed properties (called by the watcher; ``F5`` remains a hidden fallback).
+* ``isRepository`` — ``False`` while the observed folder is not (yet) a git
+  repository; all History properties are then empty.
+* ``repositoryPath`` — the observed folder.
 * ``commits`` — list model, one row per commit in the History
   (roles: ``hash``, ``shortHash``, ``subject``, ``column``, ``lane``, ``colorIndex``
   (-1 when on no branch), ``isMerge``).
@@ -25,6 +28,11 @@ Interface:
   (directly above its branch label when attached, slot 0 on the commit when detached).
 * ``columnCount``, ``laneCount``; ``historyTruncated`` and ``hiddenCommitCount`` for
   the collapsed "…" marker of older history.
+* ``workingTreeFiles`` / ``stagingAreaFiles`` — list models of changed files only
+  (roles: ``path``, ``change`` — one of ``untracked``, ``new``, ``modified``,
+  ``deleted``, ``renamed`` —, ``originalPath`` ("" unless renamed), ``conflicted``).
+  A partially staged file appears in both. The HEAD commit (``headCommitHash``) is
+  highlighted in the History as the third area.
 
 ``colorIndex`` values index ``Theme.branchColors``; a branch keeps its color as long
 as it exists.
@@ -37,10 +45,11 @@ from typing import Any
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
-from git_visualizer.git_reader import DEFAULT_MAX_COMMITS, read_snapshot
+from git_visualizer.git_reader import DEFAULT_MAX_COMMITS, NotARepositoryError, read_snapshot
 from git_visualizer.history_layout import HistoryLayout, commit_columns, layout_history
 from git_visualizer.live_view.branch_colors import BranchColors
 from git_visualizer.live_view.list_model import RowListModel
+from git_visualizer.live_view.three_areas import FILE_ROLES, file_rows
 from git_visualizer.snapshot import RepositorySnapshot
 
 NO_COLOR = -1
@@ -50,6 +59,7 @@ class LiveViewModel(QObject):
     headChanged = Signal()
     columnCountChanged = Signal()
     historyChanged = Signal()
+    isRepositoryChanged = Signal()
 
     def __init__(
         self,
@@ -88,10 +98,25 @@ class LiveViewModel(QObject):
         self._lane_bands = RowListModel(
             ("lane", "branch", "colorIndex", "firstColumn", "lastColumn"), self
         )
+        self._is_repository = False
+        self._working_tree_files = RowListModel(FILE_ROLES, self)
+        self._staging_area_files = RowListModel(FILE_ROLES, self)
 
     @Slot()
     def notifyRepositoryChanged(self) -> None:
-        self._apply(read_snapshot(self._repository_path, max_commits=self._max_commits))
+        try:
+            snapshot = read_snapshot(self._repository_path, max_commits=self._max_commits)
+        except NotARepositoryError:
+            self._set_is_repository(False)
+            self._apply(RepositorySnapshot.empty())
+            return
+        self._set_is_repository(True)
+        self._apply(snapshot)
+
+    def _set_is_repository(self, is_repository: bool) -> None:
+        if is_repository != self._is_repository:
+            self._is_repository = is_repository
+            self.isRepositoryChanged.emit()
 
     def _apply(self, snapshot: RepositorySnapshot) -> None:
         self._snapshot = snapshot
@@ -171,8 +196,34 @@ class LiveViewModel(QObject):
             ]
         )
         self.historyChanged.emit()
+        self._working_tree_files.set_rows(file_rows(snapshot.working_tree))
+        self._staging_area_files.set_rows(file_rows(snapshot.staging_area))
         self.headChanged.emit()
         self.columnCountChanged.emit()
+
+    # --- Three Areas -------------------------------------------------------------
+
+    def _get_working_tree_files(self) -> RowListModel:
+        return self._working_tree_files
+
+    workingTreeFiles = Property(QObject, _get_working_tree_files, constant=True)
+
+    def _get_staging_area_files(self) -> RowListModel:
+        return self._staging_area_files
+
+    stagingAreaFiles = Property(QObject, _get_staging_area_files, constant=True)
+
+    # --- Repository selection ---------------------------------------------------
+
+    def _get_is_repository(self) -> bool:
+        return self._is_repository
+
+    isRepository = Property(bool, _get_is_repository, notify=isRepositoryChanged)
+
+    def _get_repository_path(self) -> str:
+        return str(self._repository_path)
+
+    repositoryPath = Property(str, _get_repository_path, constant=True)
 
     # --- History -----------------------------------------------------------------
 

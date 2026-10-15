@@ -6,7 +6,7 @@ Rectangle {
 
     required property string name
 
-    width: Math.min(labelText.implicitWidth + 24, Theme.labelMaxWidth)
+    width: Math.min(labelText.implicitWidth + 24 * Theme.zoom, Theme.labelMaxWidth)
     height: Theme.labelHeight
     radius: 4
     color: Theme.tagFill

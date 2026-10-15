@@ -14,15 +14,15 @@ Item {
     Rectangle {
         anchors.horizontalCenter: parent.horizontalCenter
         y: parent.height - height / 2 - 2
-        width: 14
-        height: 14
+        width: 14 * Theme.zoom
+        height: 14 * Theme.zoom
         rotation: 45
         color: Theme.headFill
     }
 
     Rectangle {
         id: pill
-        width: headText.implicitWidth + 24
+        width: headText.implicitWidth + 24 * Theme.zoom
         height: parent.height
         radius: height / 2
         color: root.detached ? Theme.background : Theme.headFill

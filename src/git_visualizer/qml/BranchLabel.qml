@@ -7,7 +7,7 @@ Rectangle {
     required property string name
     required property int colorIndex
 
-    width: Math.min(labelText.implicitWidth + 28, Theme.labelMaxWidth)
+    width: Math.min(labelText.implicitWidth + 28 * Theme.zoom, Theme.labelMaxWidth)
     height: Theme.labelHeight
     radius: 8
     color: Theme.branchColor(colorIndex)
