@@ -46,6 +46,7 @@ Window {
     }
 
     ThreeAreasStrip {
+        id: strip
         liveView: window.liveView
         visible: window.liveView.isRepository
         anchors.left: parent.left
@@ -67,6 +68,16 @@ Window {
         visible: !window.liveView.isRepository
         anchors.centerIn: parent
         folder: window.liveView.repositoryPath
+    }
+
+    // Files sliding between the strip's columns and flying into new commits, above both.
+    FileFlights {
+        anchors.fill: parent
+        visible: window.liveView.isRepository
+        liveView: window.liveView
+        workingTree: strip.workingTreeColumn
+        stagingArea: strip.stagingAreaColumn
+        history: history
     }
 
     // Keep last: its shortcut overlay must cover everything above.

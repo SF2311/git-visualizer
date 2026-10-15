@@ -11,4 +11,16 @@ QtObject {
     readonly property int growDuration: 700
     // A removed branch or tag label fading out where it was.
     readonly property int fadeDuration: 900
+
+    // File transitions (ticket 06).
+    // A file sliding between the Working Tree and the Staging Area columns.
+    readonly property int fileSlideDuration: 750
+    // A file flying from its column into the new commit node.
+    readonly property int fileFlightDuration: 950
+    // Several files start one after another, spread over this span.
+    readonly property int fileStaggerSpan: 300
+    // A file appearing in or disappearing from a column.
+    readonly property int fileFadeDuration: 450
+    // The new commit grows in only after the files have arrived in it.
+    readonly property int commitGrowthDelay: fileFlightDuration + fileStaggerSpan
 }

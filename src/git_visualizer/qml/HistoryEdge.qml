@@ -17,6 +17,8 @@ Shape {
     // An edge to a newly added commit is drawn from the parent towards it on creation.
     property bool grows: false
     property real growth: 1
+    // Wait before growing, together with the commit it leads to.
+    property int growDelay: 0
 
     // Where the drawn edge ends: the child, or on its way there while growing.
     readonly property real endX: x1 + (x2 - x1) * growth
@@ -35,13 +37,18 @@ Shape {
         NumberAnimation { duration: Motion.slideDuration; easing.type: Motion.slideEasing }
     }
 
-    NumberAnimation on growth {
+    SequentialAnimation {
         id: growIn
         running: false
-        from: 0
-        to: 1
-        duration: Motion.growDuration
-        easing.type: Easing.OutCubic
+        PauseAnimation { duration: root.growDelay }
+        NumberAnimation {
+            target: root
+            property: "growth"
+            from: 0
+            to: 1
+            duration: Motion.growDuration
+            easing.type: Easing.OutCubic
+        }
     }
 
     Component.onCompleted: {

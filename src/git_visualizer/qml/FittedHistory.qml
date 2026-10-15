@@ -21,6 +21,12 @@ Item {
         return Math.max(minimumFitScale, Math.min(1.0, width / neededWidth, height / neededHeight))
     }
 
+    // Center of the commit node ``hash`` in ``target``'s coordinates, or null.
+    function commitPoint(hash, target) {
+        const center = history.commitCenter(hash)
+        return center ? history.mapToItem(target, center.x, center.y) : null
+    }
+
     clip: true
 
     HistoryView {

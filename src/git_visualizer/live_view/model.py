@@ -42,7 +42,8 @@ Interface:
 * ``workingTreeFiles`` / ``stagingAreaFiles`` — list models of changed files only
   (roles: ``path``, ``change`` — one of ``untracked``, ``new``, ``modified``,
   ``deleted``, ``renamed`` —, ``originalPath`` ("" unless renamed), ``conflicted``).
-  A partially staged file appears in both. The HEAD commit (``headCommitHash``) is
+  A partially staged file appears in both. Both are updated row by row, keyed by
+  ``path``. The HEAD commit (``headCommitHash``) is
   highlighted in the History as the third area.
 * ``transitions`` — list model of what changed between the previous and the current
   snapshot (roles: ``kind``, ``refType``, ``refName``, ``fromHash``, ``toHash``; see
@@ -51,6 +52,14 @@ Interface:
   commands yields only its net difference. ``addedCommitHashes`` lists the hashes of
   its ``commitAdded`` transitions. Both change before the History lists are updated
   and notify ``transitionsChanged``.
+* File transitions (ticket 06) are appended to ``transitions`` after the History ones:
+  ``fileMoved`` (``fromArea`` → ``toArea``), ``fileAppeared`` (``toArea``),
+  ``fileDisappeared`` (``fromArea``) and ``fileCommitted`` (``fromArea`` into the new
+  commit ``toHash``), each for one ``path``; areas are ``workingTree`` and
+  ``stagingArea`` (roles ``path``, ``fromArea``, ``toArea`` are "" for History
+  transitions). ``fileTransitions`` lists the same rows as plain maps (roles ``kind``,
+  ``path``, ``fromArea``, ``toArea``, ``toHash``) for the view to start its file
+  animations from; see :mod:`git_visualizer.live_view.file_transitions`.
 * ``leavingLabels`` — branch and tag labels removed by the most recent refresh that
   added, moved or removed a ref, at their last position, for the view to fade out
   (roles: ``refType``, ``name``, ``colorIndex`` (-1 for tags), ``column``, ``lane``,
@@ -88,6 +97,7 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from git_visualizer.git_reader import DEFAULT_MAX_COMMITS, NotARepositoryError, read_snapshot
 from git_visualizer.history_layout import HistoryLayout, commit_columns, layout_history
 from git_visualizer.live_view.branch_colors import BranchColors
+from git_visualizer.live_view.file_transitions import FILE_TRANSITION_KINDS, file_transitions
 from git_visualizer.live_view.ghost_commits import GhostCommits
 from git_visualizer.live_view.list_model import RowListModel
 from git_visualizer.live_view.operation_banner import banner_text
@@ -187,10 +197,11 @@ class LiveViewModel(QObject):
         self._leaving_labels = RowListModel(LEAVING_LABEL_ROLES, self, key_roles=("refType", "name"))
         self._shown_labels: dict[tuple[str, str], dict[str, Any]] = {}
         self._is_repository = False
-        self._working_tree_files = RowListModel(FILE_ROLES, self)
-        self._staging_area_files = RowListModel(FILE_ROLES, self)
+        self._working_tree_files = RowListModel(FILE_ROLES, self, key_roles=("path",))
+        self._staging_area_files = RowListModel(FILE_ROLES, self, key_roles=("path",))
         self._remote_tracking_labels = RowListModel(REMOTE_TRACKING_ROLES, self, key_roles=("name",))
         self._remotes = RowListModel(REMOTE_ROLES, self, key_roles=("name",))
+        self._file_transitions: list[dict[str, Any]] = []
 
     @Slot()
     def notifyRepositoryChanged(self) -> None:
@@ -218,6 +229,7 @@ class LiveViewModel(QObject):
         transitions = history_transitions(self._snapshot, snapshot) if self._has_read else []
         if self._has_read:
             transitions = self._update_ghost_commits(snapshot, transitions)
+            transitions = transitions + file_transitions(self._snapshot, snapshot)
         self._has_read = True
         self._set_transitions(transitions)
         self._snapshot = snapshot
@@ -356,6 +368,9 @@ class LiveViewModel(QObject):
         self._added_commit_hashes = [
             transition.to_hash for transition in transitions if transition.kind is TransitionKind.COMMIT_ADDED
         ]
+        self._file_transitions = [
+            transition.file_row() for transition in transitions if transition.kind in FILE_TRANSITION_KINDS
+        ]
         self._transitions.set_rows([transition.row() for transition in transitions])
         self.transitionsChanged.emit()
 
@@ -399,6 +414,11 @@ class LiveViewModel(QObject):
         return self._ghost_commits.hashes
 
     ghostCommitHashes = Property(list, _get_ghost_commit_hashes, notify=historyChanged)
+
+    def _get_file_transitions(self) -> list[dict[str, Any]]:
+        return [dict(row) for row in self._file_transitions]
+
+    fileTransitions = Property(list, _get_file_transitions, notify=transitionsChanged)
 
     # --- Three Areas -------------------------------------------------------------
 

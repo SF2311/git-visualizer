@@ -1,4 +1,7 @@
-"""Transition computation: what changed in the History between two Repository Snapshots.
+"""Transition computation: what changed between two Repository Snapshots.
+
+History transitions are computed here; file transitions (Three Areas) in
+:mod:`git_visualizer.live_view.file_transitions`.
 
 Only the two snapshots are compared, so a burst of git commands that the watcher
 coalesces into one refresh yields just their net difference.
@@ -12,7 +15,7 @@ from typing import Any
 
 from git_visualizer.snapshot import RepositorySnapshot
 
-TRANSITION_ROLES = ("kind", "refType", "refName", "fromHash", "toHash")
+TRANSITION_ROLES = ("kind", "refType", "refName", "fromHash", "toHash", "path", "fromArea", "toArea")
 
 
 class TransitionKind(StrEnum):
@@ -27,6 +30,14 @@ class TransitionKind(StrEnum):
     """HEAD is now attached to branch ``ref_name`` (it was detached or on another branch)."""
     HEAD_DETACHED = "headDetached"
     """HEAD was attached to branch ``ref_name`` and is now detached."""
+    FILE_MOVED = "fileMoved"
+    """File ``path`` left ``from_area`` and is (now or still) listed in ``to_area``."""
+    FILE_APPEARED = "fileAppeared"
+    """File ``path`` is newly listed in ``to_area``, not moved there from the other area."""
+    FILE_DISAPPEARED = "fileDisappeared"
+    """File ``path`` is no longer listed in ``from_area`` and went nowhere visible."""
+    FILE_COMMITTED = "fileCommitted"
+    """File ``path`` left ``from_area`` into the new HEAD commit ``to_hash``."""
 
 
 class RefType(StrEnum):
@@ -41,11 +52,19 @@ class Transition:
     ref_name: str = ""
     from_hash: str = ""
     to_hash: str = ""
+    path: str = ""
+    from_area: str = ""
+    to_area: str = ""
 
     @property
     def moves_ref(self) -> bool:
         """Whether a ref label (branch or tag) appeared, moved or disappeared."""
         return self.kind in (TransitionKind.REF_ADDED, TransitionKind.REF_MOVED, TransitionKind.REF_REMOVED)
+
+    def file_row(self) -> dict[str, Any]:
+        """The roles of a file transition: ``kind``, ``path``, ``fromArea``, ``toArea``, ``toHash``."""
+        row = self.row()
+        return {role: row[role] for role in ("kind", "path", "fromArea", "toArea", "toHash")}
 
     def row(self) -> dict[str, Any]:
         return {
@@ -54,6 +73,9 @@ class Transition:
             "refName": self.ref_name,
             "fromHash": self.from_hash,
             "toHash": self.to_hash,
+            "path": self.path,
+            "fromArea": str(self.from_area),
+            "toArea": str(self.to_area),
         }
 
 
