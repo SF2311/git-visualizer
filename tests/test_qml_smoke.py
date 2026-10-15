@@ -8,8 +8,9 @@ from pathlib import Path
 
 import pytest
 from conftest import GitRepo
-from PySide6.QtCore import QtMsgType, QMessageLogContext, qInstallMessageHandler
+from PySide6.QtCore import QMessageLogContext, QObject, Qt, QtMsgType, qInstallMessageHandler
 from PySide6.QtGui import QGuiApplication
+from PySide6.QtQuick import QQuickWindow
 from PySide6.QtTest import QTest
 
 from git_visualizer.app import create_engine
@@ -201,6 +202,41 @@ def test_qml_view_shows_and_clears_ghost_commits_without_warnings(
         QTest.qWait(120)
 
     assert engine.rootObjects(), "Main.qml did not load"
+    assert qt_messages == []
+    for root in engine.rootObjects():
+        root.deleteLater()
+    qapp.processEvents()
+
+
+def test_qml_legend_opens_in_both_themes_without_warnings(
+    repo: GitRepo, qapp: QGuiApplication, qt_messages: list[str]
+) -> None:
+    repo.commit("Erster Commit")
+    model = LiveViewModel(repo.path)
+    model.notifyRepositoryChanged()
+    engine = create_engine(model)
+    qapp.processEvents()
+    window = engine.rootObjects()[0]
+    assert isinstance(window, QQuickWindow)
+    QTest.qWaitForWindowExposed(window)
+
+    QTest.keyClick(window, Qt.Key.Key_L)
+    qapp.processEvents()
+    window.grabWindow()
+    QTest.keyClick(window, Qt.Key.Key_T)  # dark theme
+    QTest.qWait(50)
+    window.grabWindow()
+    QTest.keyClick(window, Qt.Key.Key_Plus, Qt.KeyboardModifier.ControlModifier)
+    qapp.processEvents()
+    window.grabWindow()
+    controls = window.findChild(QObject, "projectorControls")
+    assert controls is not None
+    assert controls.property("legendVisible") is True
+    # Theme is a singleton shared by every engine in the process: restore the defaults.
+    QTest.keyClick(window, Qt.Key.Key_T)
+    QTest.keyClick(window, Qt.Key.Key_0, Qt.KeyboardModifier.ControlModifier)
+    qapp.processEvents()
+
     assert qt_messages == []
     for root in engine.rootObjects():
         root.deleteLater()

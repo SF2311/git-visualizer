@@ -1,7 +1,7 @@
 import QtQuick
 
-// Keyboard-only projector controls (no toolbars, no buttons): zoom, light/dark theme
-// and the shortcut overlay. Place it last in the window so the overlay is on top.
+// Keyboard-only projector controls (no toolbars, no buttons): zoom, light/dark theme,
+// the legend and the shortcut overlay. Place it last in the window so both are on top.
 Item {
     id: root
 
@@ -14,6 +14,7 @@ Item {
     readonly property real zoom: Theme.zoom
     readonly property bool darkTheme: Theme.dark
     property bool shortcutOverlayVisible: false
+    property bool legendVisible: false
 
     // Every keyboard shortcut of the Live View, as listed in the overlay.
     // A ticket that adds a shortcut (e.g. Esc, L) adds its entry here.
@@ -23,6 +24,7 @@ Item {
         { keys: "Strg 0", description: "Originalgröße" },
         { keys: "Esc", description: "Ghost Commits ausblenden" },
         { keys: "T", description: "Helles / dunkles Design umschalten" },
+        { keys: "L", description: "Legende ein- / ausblenden" },
         { keys: "?", description: "Tastenkürzel ein- / ausblenden" }
     ]
 
@@ -55,6 +57,17 @@ Item {
         onActivated: root.shortcutOverlayVisible = !root.shortcutOverlayVisible
     }
 
+    Shortcut {
+        sequence: "L"
+        onActivated: root.legendVisible = !root.legendVisible
+    }
+
+    Legend {
+        anchors.fill: parent
+        visible: root.legendVisible
+    }
+
+    // After the legend, so `?` also shows the shortcuts while the legend is open.
     ShortcutOverlay {
         anchors.fill: parent
         visible: root.shortcutOverlayVisible
