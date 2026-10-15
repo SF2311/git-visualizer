@@ -8,11 +8,24 @@ Item {
     required property string subject
     property real centerX
     property real centerY
+    // The HEAD commit is highlighted: the History is the third of the Three Areas.
+    property bool isHead: false
 
     x: centerX - Theme.columnWidth / 2
     y: centerY - Theme.commitRadius
     width: Theme.columnWidth
     height: subjectText.y + subjectText.height
+
+    Rectangle {
+        visible: root.isHead
+        anchors.centerIn: circle
+        width: circle.width + 18
+        height: width
+        radius: width / 2
+        color: "transparent"
+        border.color: Theme.headCommitHalo
+        border.width: 4
+    }
 
     Rectangle {
         id: circle

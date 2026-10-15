@@ -10,6 +10,7 @@ import os
 import subprocess
 from pathlib import Path
 
+from git_visualizer.file_status import STATUS_ARGS, parse_status
 from git_visualizer.snapshot import Branch, Commit, Head, RepositorySnapshot
 
 
@@ -29,7 +30,14 @@ def read_snapshot(repository_path: Path) -> RepositorySnapshot:
     head = _read_head(git)
     branches = _read_branches(git)
     commits = _read_commits(git, has_head_commit=head.commit_hash is not None)
-    return RepositorySnapshot(commits=commits, branches=branches, head=head)
+    working_tree, staging_area = parse_status(git.run(*STATUS_ARGS))
+    return RepositorySnapshot(
+        commits=commits,
+        branches=branches,
+        head=head,
+        working_tree=working_tree,
+        staging_area=staging_area,
+    )
 
 
 class _Git:

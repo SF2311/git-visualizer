@@ -31,6 +31,9 @@ def test_qml_view_loads_without_warnings(
 ) -> None:
     repo.commit("Erster Commit")
     repo.commit("Add login")
+    repo.write("login.py", "v1\n")
+    repo.git("add", "login.py")
+    repo.write("login.py", "v2\n")  # Working Tree and Staging Area both populated
     model = LiveViewModel(repo.path)
     model.notifyRepositoryChanged()
 

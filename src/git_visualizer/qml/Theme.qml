@@ -22,4 +22,21 @@ QtObject {
     readonly property int hashFontSize: 15
     readonly property int subjectFontSize: 22
     readonly property int labelFontSize: 20
+
+    // Three Areas strip (ticket 04)
+    readonly property color stripBackground: "#f0efe9"
+    readonly property color stripDivider: "#d6d4cc"
+    readonly property color fileFill: "#ffffff"
+    readonly property color fileBorder: "#d6d4cc"
+    readonly property color changeUntracked: "#2f9e44"
+    readonly property color changeNew: "#2f9e44"
+    readonly property color changeModified: "#e8a317"
+    readonly property color changeDeleted: "#c92a2a"
+    readonly property color changeRenamed: "#7048e8"
+    readonly property color conflict: "#e03131"
+    readonly property color headCommitHalo: "#d9480f"
+    readonly property int areaTitleFontSize: 24
+    readonly property int fileFontSize: 20
+    readonly property int changeFontSize: 15
+    readonly property real fileRowHeight: 40
 }

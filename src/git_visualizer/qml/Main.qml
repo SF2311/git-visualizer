@@ -26,4 +26,12 @@ Window {
         anchors.top: parent.top
         height: parent.height * 2 / 3
     }
+
+    ThreeAreasStrip {
+        liveView: window.liveView
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: history.bottom
+        anchors.bottom: parent.bottom
+    }
 }
