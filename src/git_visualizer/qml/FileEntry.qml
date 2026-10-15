@@ -10,7 +10,7 @@ Rectangle {
     required property bool conflicted
 
     readonly property var changeLabels: ({
-        "untracked": "untracked",
+        "untracked": "unversioniert",
         "new": "neu",
         "modified": "geändert",
         "deleted": "gelöscht",

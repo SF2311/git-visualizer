@@ -33,7 +33,7 @@ steht, was zu sehen sein sollte. Am Ende bleibt der Ordner erhalten (der
 
 ## 2. Commits
 
-- [ ] **first-file**: README.md erscheint im Working Tree mit Badge „untracked“ (eingeblendet, nicht hart)
+- [ ] **first-file**: README.md erscheint im Working Tree mit Badge „unversioniert“ (eingeblendet, nicht hart)
 - [ ] **first-add**: README.md *gleitet* vom Working Tree in den Staging Bereich, Badge „neu“
 - [ ] **first-commit**: README.md *fliegt* aus dem Staging Bereich in den Commit-Knoten; erst danach *wächst* der Commit ein
 - [ ] Commit-Knoten: kurzer Hash klein, erste Zeile der Nachricht groß, gut lesbar; Knoten sehen gepflegt aus (offen aus Ticket 03)

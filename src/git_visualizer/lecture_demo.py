@@ -97,7 +97,7 @@ def _steps() -> tuple[Step, ...]:
             "Commits",
             "Eine neue Datei liegt nur im Working Tree – git kennt sie noch nicht.",
             (Write("README.md", "# Vorlesung git"),),
-            watch="README.md erscheint im Working Tree als „untracked“.",
+            watch="README.md erscheint im Working Tree als „unversioniert“.",
         ),
         Step(
             "first-add",
