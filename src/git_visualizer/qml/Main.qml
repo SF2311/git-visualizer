@@ -18,6 +18,11 @@ Window {
         onActivated: window.liveView.notifyRepositoryChanged()
     }
 
+    Shortcut {
+        sequence: "Esc"
+        onActivated: window.liveView.clearGhostCommits()
+    }
+
     FittedHistory {
         id: history
         liveView: window.liveView

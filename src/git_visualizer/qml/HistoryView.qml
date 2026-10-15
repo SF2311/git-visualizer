@@ -89,6 +89,12 @@ Item {
             required property int colorIndex
             required property bool toCollapsed
             required property bool firstParent
+            required property bool isGhost
+            // The edges of a Ghost Commit fade with it.
+            opacity: isGhost ? Theme.ghostOpacity : 1
+            Behavior on opacity {
+                NumberAnimation { duration: Motion.fadeDuration; easing.type: Easing.InOutQuad }
+            }
             x1: root.columnCenterX(parentColumn) + (toCollapsed ? Theme.columnWidth * 0.25 : 0)
             y1: root.laneCenterY(parentLane)
             x2: root.columnCenterX(childColumn)

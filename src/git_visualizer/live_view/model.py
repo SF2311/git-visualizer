@@ -10,11 +10,12 @@ Interface:
 * ``repositoryPath`` — the observed folder.
 * ``commits`` — list model, one row per commit in the History
   (roles: ``hash``, ``shortHash``, ``subject``, ``column``, ``lane``, ``colorIndex``
-  (-1 when on no branch), ``isMerge``).
+  (-1 when on no branch), ``isMerge``, ``isGhost``). Ghost Commits are listed after
+  the reachable commits and keep the color they had while reachable.
 * ``edges`` — list model, one row per parent link (roles: ``childHash``,
   ``parentHash``, ``childColumn``, ``childLane``, ``parentColumn``, ``parentLane``,
-  ``colorIndex``, ``toCollapsed``, ``firstParent``). A first-parent edge takes the child's color, other
-  parent edges (merges) the parent's. ``toCollapsed`` edges lead to a parent hidden by
+  ``colorIndex``, ``toCollapsed``, ``firstParent``, ``isGhost`` (the child is a Ghost
+  Commit)). A first-parent edge takes the child's color, other parent edges (merges) the parent's. ``toCollapsed`` edges lead to a parent hidden by
   the display limit; they end at column -1 in the child's lane.
 * ``branchLabels`` — list model, one row per local branch (roles: ``name``,
   ``commitHash``, ``column``, ``lane``, ``colorIndex``, ``stackIndex``, ``hasHead``).
@@ -45,6 +46,12 @@ Interface:
   (roles: ``refType``, ``name``, ``colorIndex`` (-1 for tags), ``column``, ``lane``,
   ``stackIndex``).
 
+* ``ghostCommitHashes`` — hashes of the Ghost Commits (see
+  :mod:`~git_visualizer.live_view.ghost_commits`): commits shown before a refresh that
+  no shown ref or HEAD reaches afterwards. They stay in ``commits`` and ``edges``
+  (``isGhost``) until the next refresh that moves a ref, or until
+  ``clearGhostCommits()`` (``Esc``). None after the first refresh.
+
 The History lists (``commits``, ``edges``, ``branchLabels``, ``tagLabels``,
 ``laneBands``) are updated row by row, keyed by commit hash, parent link, label name
 and lane owner, so that QML delegates persist across refreshes and animate.
@@ -55,6 +62,7 @@ as it exists.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -63,6 +71,7 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from git_visualizer.git_reader import DEFAULT_MAX_COMMITS, NotARepositoryError, read_snapshot
 from git_visualizer.history_layout import HistoryLayout, commit_columns, layout_history
 from git_visualizer.live_view.branch_colors import BranchColors
+from git_visualizer.live_view.ghost_commits import GhostCommits
 from git_visualizer.live_view.list_model import RowListModel
 from git_visualizer.live_view.three_areas import FILE_ROLES, file_rows
 from git_visualizer.live_view.transitions import (
@@ -72,6 +81,7 @@ from git_visualizer.live_view.transitions import (
     TransitionKind,
     history_transitions,
 )
+from git_visualizer.reachability import unreachable_commits
 from git_visualizer.snapshot import RepositorySnapshot
 
 NO_COLOR = -1
@@ -99,7 +109,7 @@ class LiveViewModel(QObject):
         self._branch_colors = BranchColors()
         self._layout = layout_history(self._snapshot, [])
         self._commits = RowListModel(
-            ("hash", "shortHash", "subject", "column", "lane", "colorIndex", "isMerge"),
+            ("hash", "shortHash", "subject", "column", "lane", "colorIndex", "isMerge", "isGhost"),
             self,
             key_roles=("hash",),
         )
@@ -114,6 +124,7 @@ class LiveViewModel(QObject):
                 "colorIndex",
                 "toCollapsed",
                 "firstParent",
+                "isGhost",
             ),
             self,
             key_roles=("childHash", "parentHash"),
@@ -132,6 +143,8 @@ class LiveViewModel(QObject):
             key_roles=("lane", "branch"),
         )
         self._has_read = False
+        self._ghost_commits = GhostCommits()
+        self._shown_commit_colors: dict[str, int] = {}
         self._transitions = RowListModel(TRANSITION_ROLES, self)
         self._added_commit_hashes: list[str] = []
         self._leaving_labels = RowListModel(LEAVING_LABEL_ROLES, self, key_roles=("refType", "name"))
@@ -146,6 +159,7 @@ class LiveViewModel(QObject):
             snapshot = read_snapshot(self._repository_path, max_commits=self._max_commits)
         except NotARepositoryError:
             self._set_is_repository(False)
+            self._ghost_commits.clear()
             self._apply(RepositorySnapshot.empty())
             return
         self._set_is_repository(True)
@@ -156,11 +170,45 @@ class LiveViewModel(QObject):
             self._is_repository = is_repository
             self.isRepositoryChanged.emit()
 
+    @Slot()
+    def clearGhostCommits(self) -> None:
+        self._ghost_commits.clear()
+        self._show()
+
     def _apply(self, snapshot: RepositorySnapshot) -> None:
         transitions = history_transitions(self._snapshot, snapshot) if self._has_read else []
+        if self._has_read:
+            transitions = self._update_ghost_commits(snapshot, transitions)
         self._has_read = True
         self._set_transitions(transitions)
         self._snapshot = snapshot
+        self._show()
+
+    def _update_ghost_commits(
+        self, snapshot: RepositorySnapshot, transitions: list[Transition]
+    ) -> list[Transition]:
+        """Update the Ghost Commits; returns ``transitions`` without ghosts shown again
+        as reachable commits (they are already on screen, so they must not grow in)."""
+        previous_ghosts = set(self._ghost_commits.hashes)
+        self._ghost_commits.update(
+            self._snapshot,
+            snapshot,
+            transitions,
+            colors=self._shown_commit_colors,
+            unreachable=lambda hashes: unreachable_commits(
+                self._repository_path, hashes, head_commit=snapshot.head.commit_hash
+            ),
+        )
+        return [
+            transition
+            for transition in transitions
+            if not (transition.kind is TransitionKind.COMMIT_ADDED and transition.to_hash in previous_ghosts)
+        ]
+
+    def _show(self) -> None:
+        """Update the exposed lists for ``self._snapshot`` plus the Ghost Commits."""
+        ghosts = self._ghost_commits
+        snapshot = replace(self._snapshot, commits=self._snapshot.commits + ghosts.commits)
         # New branches are ranked by how far left their tip is: older lines get upper lanes.
         columns = commit_columns(snapshot.commits)
         self._branch_colors.update(
@@ -170,23 +218,27 @@ class LiveViewModel(QObject):
         layout = self._layout = layout_history(snapshot, self._branch_colors.ordered_names())
 
         def commit_color(commit_hash: str) -> int:
+            ghost_color = ghosts.color_index(commit_hash)
+            if ghost_color is not None:
+                return ghost_color
             owner = layout.owners.get(commit_hash)
             return NO_COLOR if owner is None else self._branch_colors.color_index(owner)
 
-        self._commits.set_rows(
-            [
-                {
-                    "hash": commit.hash,
-                    "shortHash": commit.short_hash,
-                    "subject": commit.subject,
-                    "column": layout.columns[commit.hash],
-                    "lane": layout.lanes[commit.hash],
-                    "colorIndex": commit_color(commit.hash),
-                    "isMerge": commit.is_merge,
-                }
-                for commit in snapshot.commits
-            ]
-        )
+        commit_rows: list[dict[str, Any]] = [
+            {
+                "hash": commit.hash,
+                "shortHash": commit.short_hash,
+                "subject": commit.subject,
+                "column": layout.columns[commit.hash],
+                "lane": layout.lanes[commit.hash],
+                "colorIndex": commit_color(commit.hash),
+                "isMerge": commit.is_merge,
+                "isGhost": ghosts.color_index(commit.hash) is not None,
+            }
+            for commit in snapshot.commits
+        ]
+        self._commits.set_rows(commit_rows)
+        self._shown_commit_colors = {row["hash"]: row["colorIndex"] for row in commit_rows}
         self._edges.set_rows(
             [
                 _edge_row(
@@ -195,6 +247,7 @@ class LiveViewModel(QObject):
                     parent,
                     color=commit_color(commit.hash if index == 0 else parent),
                     first_parent=index == 0,
+                    ghost=ghosts.color_index(commit.hash) is not None,
                 )
                 for commit in snapshot.commits
                 for index, parent in enumerate(commit.parents)
@@ -293,6 +346,11 @@ class LiveViewModel(QObject):
         return self._leaving_labels
 
     leavingLabels = Property(QObject, _get_leaving_labels, constant=True)
+
+    def _get_ghost_commit_hashes(self) -> list[str]:
+        return self._ghost_commits.hashes
+
+    ghostCommitHashes = Property(list, _get_ghost_commit_hashes, notify=historyChanged)
 
     # --- Three Areas -------------------------------------------------------------
 
@@ -411,7 +469,7 @@ def _position(layout: HistoryLayout, commit_hash: str | None) -> dict[str, int]:
 
 
 def _edge_row(
-    layout: HistoryLayout, child: str, parent: str, *, color: int, first_parent: bool
+    layout: HistoryLayout, child: str, parent: str, *, color: int, first_parent: bool, ghost: bool
 ) -> dict[str, Any]:
     collapsed = parent not in layout.columns
     child_lane = layout.lanes[child]
@@ -425,4 +483,5 @@ def _edge_row(
         "colorIndex": color,
         "toCollapsed": collapsed,
         "firstParent": first_parent,
+        "isGhost": ghost,
     }

@@ -177,3 +177,17 @@ def test_auto_fit_does_not_undo_zooming_in(repo: GitRepo, view: LoadedView) -> N
     view.press(Qt.Key.Key_Plus, Qt.KeyboardModifier.ControlModifier)
 
     assert view.history("fitScale") * view.control("zoom") > before
+
+
+def test_escape_clears_ghost_commits_and_is_listed(repo: GitRepo, view: LoadedView) -> None:
+    live_view = view.window.property("liveView")
+    repo.git("commit", "-q", "--amend", "-m", "Erster Commit, korrigiert")
+    live_view.notifyRepositoryChanged()
+    view.qapp.processEvents()
+    assert len(live_view.property("ghostCommitHashes")) == 1
+
+    view.press(Qt.Key.Key_Escape)
+
+    assert live_view.property("ghostCommitHashes") == []
+    listed = view.control("shortcuts").toVariant()
+    assert "Esc" in [entry["keys"] for entry in listed]
