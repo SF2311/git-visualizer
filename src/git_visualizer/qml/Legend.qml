@@ -97,7 +97,7 @@ Rectangle {
                     }
 
                     LegendEntry {
-                        description: "Detached HEAD (umrandet): HEAD zeigt direkt auf einen Commit, z. B. während eines Rebase. Der orange Ring markiert den HEAD-Commit."
+                        description: "Detached HEAD: HEAD zeigt direkt auf einen Commit, z. B. während eines Rebase. Der HEAD-Marker ist dann nur umrandet statt gefüllt und sitzt direkt am Commit, ohne Branch-Label dazwischen. Der orange Ring markiert den HEAD-Commit."
 
                         Column {
                             width: parent.width
@@ -128,7 +128,7 @@ Rectangle {
                     }
 
                     LegendEntry {
-                        description: "Remote-tracking Branch (umrandet): Stand des Remote beim letzten fetch, pull oder push."
+                        description: "Remote-tracking Branch, z. B. origin/main: ein nur umrandetes Label mit Remote-Namen davor, in der Farbe des lokalen Branch, dessen Upstream es ist (sonst grau). Zeigt den Stand des Remote beim letzten fetch, pull oder push."
 
                         RemoteTrackingLabel {
                             anchors.horizontalCenter: parent.horizontalCenter
