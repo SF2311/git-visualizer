@@ -33,6 +33,9 @@ QtObject {
         : ["#3b6fd8", "#2f9e44", "#ae3ec9", "#0c8599", "#b08900", "#c2255c", "#5c940d", "#6741d9"]
     // Commits and edges that belong to no branch (colorIndex -1).
     readonly property color noBranch: dark ? "#6b7385" : "#9aa3b2"
+    // Ghost Commits (ticket 07) and their edges are drawn at this opacity; dark needs a
+    // little more to stay visible on the projector. An opacity, so zoom does not apply.
+    readonly property real ghostOpacity: dark ? 0.4 : 0.32
 
     function branchColor(index) {
         return index >= 0 ? branchColors[index % branchColors.length] : noBranch

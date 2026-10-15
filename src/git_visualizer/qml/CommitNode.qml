@@ -9,6 +9,8 @@ Item {
     required property string subject
     required property int colorIndex
     required property bool isMerge
+    // A Ghost Commit (no longer reachable) stays where it was, faded.
+    required property bool isGhost
     property real centerX
     property real centerY
     // The HEAD commit is highlighted: the History is the third of the Three Areas.
@@ -24,7 +26,11 @@ Item {
     y: centerY - Theme.commitRadius
     width: Theme.columnWidth
     height: subjectText.y + subjectText.height
-    opacity: Math.min(1, growth * 1.5)
+    opacity: Math.min(1, growth * 1.5) * ghostFade
+    property real ghostFade: isGhost ? Theme.ghostOpacity : 1
+    Behavior on ghostFade {
+        NumberAnimation { duration: Motion.fadeDuration; easing.type: Easing.InOutQuad }
+    }
     transform: Scale {
         origin.x: root.width / 2
         origin.y: Theme.commitRadius

@@ -170,3 +170,38 @@ def test_qml_view_loads_remotes_and_upstream_without_warnings(
     for root in engine.rootObjects():
         root.deleteLater()
     qapp.processEvents()
+
+
+def test_qml_view_shows_and_clears_ghost_commits_without_warnings(
+    repo: GitRepo, qapp: QGuiApplication, qt_messages: list[str]
+) -> None:
+    repo.commit("Basis")
+    repo.git("switch", "-q", "-c", "feature")
+    repo.commit("Feature 1", file="feature.txt")
+    repo.commit("Feature 2", file="feature.txt")
+    repo.git("switch", "-q", "main")
+    repo.commit("Hauptlinie")
+    repo.git("switch", "-q", "feature")
+    model = LiveViewModel(repo.path)
+    model.notifyRepositoryChanged()
+    engine = create_engine(model)
+    qapp.processEvents()
+
+    steps: list[Callable[[], object]] = [
+        lambda: repo.git("rebase", "-q", "main"),
+        lambda: repo.git("commit", "-q", "--amend", "-m", "Feature 2, korrigiert"),
+        model.clearGhostCommits,
+        lambda: repo.git("switch", "-q", "main"),
+        lambda: repo.git("branch", "-q", "-D", "feature"),
+        lambda: repo.commit("Weiter"),
+    ]
+    for step in steps:
+        step()
+        model.notifyRepositoryChanged()
+        QTest.qWait(120)
+
+    assert engine.rootObjects(), "Main.qml did not load"
+    assert qt_messages == []
+    for root in engine.rootObjects():
+        root.deleteLater()
+    qapp.processEvents()

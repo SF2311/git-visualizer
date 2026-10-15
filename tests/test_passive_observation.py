@@ -69,6 +69,23 @@ def test_reading_status_leaves_the_index_file_byte_identical(repo: GitRepo) -> N
     assert index.read_bytes() != before[0]
 
 
+def test_finding_ghost_commits_leaves_the_repository_untouched(repo: GitRepo) -> None:
+    repo.commit("Erster Commit")
+    repo.git("switch", "-q", "-c", "experiment")
+    repo.commit("Versuch", file="experiment.txt")
+    repo.git("switch", "-q", "main")
+    model = LiveViewModel(repo.path)
+    model.notifyRepositoryChanged()
+    repo.git("branch", "-q", "-D", "experiment")
+    before = _repository_state(repo.path)
+
+    model.notifyRepositoryChanged()  # reads reachability to find the Ghost Commit
+    model.clearGhostCommits()
+
+    assert _repository_state(repo.path) == before
+    assert list(repo.path.rglob("*.lock")) == []
+
+
 def test_watching_leaves_the_repository_untouched(repo: GitRepo, qapp: QGuiApplication) -> None:
     repo.commit("Erster Commit")
     repo.write(".gitignore", "build/\n")

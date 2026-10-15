@@ -21,6 +21,7 @@ Item {
         { keys: "Strg +", description: "Vergrößern" },
         { keys: "Strg −", description: "Verkleinern" },
         { keys: "Strg 0", description: "Originalgröße" },
+        { keys: "Esc", description: "Ghost Commits ausblenden" },
         { keys: "T", description: "Helles / dunkles Design umschalten" },
         { keys: "?", description: "Tastenkürzel ein- / ausblenden" }
     ]
