@@ -48,6 +48,13 @@ Interface:
 The History lists (``commits``, ``edges``, ``branchLabels``, ``tagLabels``,
 ``laneBands``) are updated row by row, keyed by commit hash, parent link, label name
 and lane owner, so that QML delegates persist across refreshes and animate.
+* In-progress Operation (merge, rebase, cherry-pick, revert): ``operationKind``
+  ("" when none, else ``merge``, ``rebase``, ``cherry-pick`` or ``revert``),
+  ``operationStep``/``operationTotal`` (rebase progress, 0 when unknown or not a
+  rebase), ``conflictCount`` (unmerged files) and ``operationBanner``, the German
+  banner text ("Merge läuft – 2 Konflikte", "Rebase 2/5"; "" when none). Conflicted
+  files are listed in ``workingTreeFiles`` with ``conflicted``; during a paused rebase
+  HEAD is detached.
 
 ``colorIndex`` values index ``Theme.branchColors``; a branch keeps its color as long
 as it exists.
@@ -64,6 +71,7 @@ from git_visualizer.git_reader import DEFAULT_MAX_COMMITS, NotARepositoryError, 
 from git_visualizer.history_layout import HistoryLayout, commit_columns, layout_history
 from git_visualizer.live_view.branch_colors import BranchColors
 from git_visualizer.live_view.list_model import RowListModel
+from git_visualizer.live_view.operation_banner import banner_text
 from git_visualizer.live_view.three_areas import FILE_ROLES, file_rows
 from git_visualizer.live_view.transitions import (
     TRANSITION_ROLES,
@@ -84,6 +92,7 @@ class LiveViewModel(QObject):
     historyChanged = Signal()
     isRepositoryChanged = Signal()
     transitionsChanged = Signal()
+    inProgressOperationChanged = Signal()
 
     def __init__(
         self,
@@ -238,6 +247,7 @@ class LiveViewModel(QObject):
         self.historyChanged.emit()
         self._working_tree_files.set_rows(file_rows(snapshot.working_tree))
         self._staging_area_files.set_rows(file_rows(snapshot.staging_area))
+        self.inProgressOperationChanged.emit()
         self.headChanged.emit()
         self.columnCountChanged.emit()
 
@@ -305,6 +315,37 @@ class LiveViewModel(QObject):
         return self._staging_area_files
 
     stagingAreaFiles = Property(QObject, _get_staging_area_files, constant=True)
+
+    # --- In-progress Operation ---------------------------------------------------
+
+    def _get_operation_kind(self) -> str:
+        operation = self._snapshot.in_progress_operation
+        return "" if operation is None else operation.kind.value
+
+    operationKind = Property(str, _get_operation_kind, notify=inProgressOperationChanged)
+
+    def _get_operation_step(self) -> int:
+        operation = self._snapshot.in_progress_operation
+        return 0 if operation is None else operation.step
+
+    operationStep = Property(int, _get_operation_step, notify=inProgressOperationChanged)
+
+    def _get_operation_total(self) -> int:
+        operation = self._snapshot.in_progress_operation
+        return 0 if operation is None else operation.total
+
+    operationTotal = Property(int, _get_operation_total, notify=inProgressOperationChanged)
+
+    def _get_conflict_count(self) -> int:
+        operation = self._snapshot.in_progress_operation
+        return 0 if operation is None else operation.conflict_count
+
+    conflictCount = Property(int, _get_conflict_count, notify=inProgressOperationChanged)
+
+    def _get_operation_banner(self) -> str:
+        return banner_text(self._snapshot.in_progress_operation)
+
+    operationBanner = Property(str, _get_operation_banner, notify=inProgressOperationChanged)
 
     # --- Repository selection ---------------------------------------------------
 

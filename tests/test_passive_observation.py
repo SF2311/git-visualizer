@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import time
 from pathlib import Path
 
+import pytest
 from conftest import GitRepo
 from PySide6.QtGui import QGuiApplication
 
@@ -82,5 +84,38 @@ def test_watching_leaves_the_repository_untouched(repo: GitRepo, qapp: QGuiAppli
         time.sleep(0.01)
     watcher.stop()
 
+    assert _repository_state(repo.path) == before
+    assert list(repo.path.rglob("*.lock")) == []
+
+
+def _paused_on_conflict(repo: GitRepo, *command: str) -> None:
+    """``feature`` and ``main`` both change ``a.txt``; run ``command`` until it stops."""
+    repo.commit("Basis", file="a.txt")
+    repo.git("switch", "-q", "-c", "feature")
+    repo.commit("Feature", file="a.txt")
+    repo.commit("Feature 2", file="b.txt")
+    repo.git("switch", "-q", "main")
+    repo.commit("Main", file="a.txt")
+    if command[0] == "rebase":
+        repo.git("switch", "-q", "feature")
+    with pytest.raises(subprocess.CalledProcessError):
+        repo.git(*command)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [("merge", "feature"), ("rebase", "main"), ("rebase", "--apply", "main"), ("cherry-pick", "feature~1")],
+)
+def test_refresh_leaves_a_repository_mid_operation_untouched(
+    repo: GitRepo, command: tuple[str, ...]
+) -> None:
+    _paused_on_conflict(repo, *command)
+    before = _repository_state(repo.path)
+
+    model = LiveViewModel(repo.path)
+    for _ in range(3):
+        model.notifyRepositoryChanged()
+
+    assert model.property("operationBanner") != ""
     assert _repository_state(repo.path) == before
     assert list(repo.path.rglob("*.lock")) == []

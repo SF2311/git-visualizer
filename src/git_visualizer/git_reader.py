@@ -11,6 +11,7 @@ import subprocess
 from pathlib import Path
 
 from git_visualizer.file_status import STATUS_ARGS, parse_status
+from git_visualizer.in_progress_operation import read_in_progress_operation
 from git_visualizer.snapshot import Branch, Commit, Head, RepositorySnapshot, Tag
 
 DEFAULT_MAX_COMMITS = 30
@@ -36,7 +37,8 @@ def read_snapshot(
     ``refs/stash``): the ``max_commits`` most recent ones plus any ref tip beyond them.
     """
     git = _Git(repository_path)
-    if git.run_optional("rev-parse", "--git-dir") is None:
+    git_dir = git.run_optional("rev-parse", "--absolute-git-dir")
+    if git_dir is None:
         raise NotARepositoryError(str(repository_path))
     head = _read_head(git)
     branches = _read_branches(git)
@@ -54,6 +56,7 @@ def read_snapshot(
         hidden_commit_count=hidden_commit_count,
         working_tree=working_tree,
         staging_area=staging_area,
+        in_progress_operation=read_in_progress_operation(Path(git_dir.strip()), working_tree),
     )
 
 

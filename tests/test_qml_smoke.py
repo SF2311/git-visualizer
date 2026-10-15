@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
@@ -113,6 +114,29 @@ def test_qml_view_animates_history_transitions_without_warnings(
         step()
         model.notifyRepositoryChanged()
         QTest.qWait(120)
+
+    assert engine.rootObjects(), "Main.qml did not load"
+    assert qt_messages == []
+    for root in engine.rootObjects():
+        root.deleteLater()
+    qapp.processEvents()
+
+
+def test_qml_view_loads_a_paused_merge_without_warnings(
+    repo: GitRepo, qapp: QGuiApplication, qt_messages: list[str]
+) -> None:
+    repo.commit("Basis", file="a.txt")
+    repo.git("switch", "-q", "-c", "feature")
+    repo.commit("Feature", file="a.txt")
+    repo.git("switch", "-q", "main")
+    repo.commit("Main", file="a.txt")
+    with pytest.raises(subprocess.CalledProcessError):
+        repo.git("merge", "feature")
+    model = LiveViewModel(repo.path)
+    model.notifyRepositoryChanged()
+
+    engine = create_engine(model)
+    qapp.processEvents()
 
     assert engine.rootObjects(), "Main.qml did not load"
     assert qt_messages == []
