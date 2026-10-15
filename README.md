@@ -11,7 +11,8 @@ uv tool install .        # or: pipx install .
 git-visualizer /path/to/repository
 ```
 
-`F5` re-reads the repository (temporary until the filesystem watcher exists).
+`--max-commits N` limits the History to the N most recent commits (default 30);
+older history is collapsed into "…". `F5` re-reads the repository (temporary until the filesystem watcher exists).
 
 ## Development
 
@@ -25,7 +26,7 @@ python3 -m venv .venv
 Layout (`src/git_visualizer/`):
 
 - `git_reader.py` — runs read-only git commands and produces an immutable Repository Snapshot (`snapshot.py`)
-- `history_layout.py` — columns by ancestry
+- `history_layout.py` — columns by ancestry, lanes per branch, label stacking
 - `live_view/` — `LiveViewModel`, the single object QML binds to and the single test seam
 - `qml/` — the view (`Main.qml`, `HistoryView.qml`, components, `Theme` singleton)
 - `app.py` — console entry point

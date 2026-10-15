@@ -1,18 +1,34 @@
 import QtQuick
 
-// One commit: circle with short hash (small) above the first message line (larger).
+// One commit: a ring in its lane color (merge commits with a filled center), the short
+// hash (small) and below it the first message line (larger).
 Item {
     id: root
 
     required property string shortHash
     required property string subject
+    required property int colorIndex
+    required property bool isMerge
     property real centerX
     property real centerY
+
+    readonly property color laneColor: Theme.branchColor(colorIndex)
 
     x: centerX - Theme.columnWidth / 2
     y: centerY - Theme.commitRadius
     width: Theme.columnWidth
     height: subjectText.y + subjectText.height
+
+    // Soft shadow beneath the ring.
+    Rectangle {
+        x: circle.x
+        y: circle.y + 3
+        width: circle.width
+        height: circle.height
+        radius: width / 2
+        color: Theme.commitShadow
+        opacity: 0.12
+    }
 
     Rectangle {
         id: circle
@@ -21,24 +37,52 @@ Item {
         height: width
         radius: width / 2
         color: Theme.commitFill
-        border.color: Theme.commitBorder
-        border.width: 5
+        border.color: root.laneColor
+        border.width: 6
+
+        Rectangle {
+            visible: root.isMerge
+            anchors.centerIn: parent
+            width: parent.width * 0.38
+            height: width
+            radius: width / 2
+            color: root.laneColor
+        }
     }
 
-    Text {
-        id: hashText
+    Rectangle {
+        id: hashChip
         anchors.top: circle.bottom
-        anchors.topMargin: 10
+        anchors.topMargin: 8
         anchors.horizontalCenter: parent.horizontalCenter
-        text: root.shortHash
-        color: Theme.mutedText
-        font.family: "monospace"
-        font.pixelSize: Theme.hashFontSize
+        width: hashText.implicitWidth + 12
+        height: hashText.implicitHeight + 4
+        radius: 6
+        color: Qt.tint(Theme.background, Qt.alpha(root.laneColor, 0.14))
+
+        Text {
+            id: hashText
+            anchors.centerIn: parent
+            text: root.shortHash
+            color: Theme.mutedText
+            font.family: "monospace"
+            font.pixelSize: Theme.hashFontSize
+        }
+    }
+
+    // Backing so edges passing below the commit don't run through the message.
+    Rectangle {
+        anchors.centerIn: subjectText
+        width: subjectText.contentWidth + 12
+        height: subjectText.contentHeight + 4
+        radius: 6
+        color: Theme.background
+        opacity: 0.9
     }
 
     Text {
         id: subjectText
-        anchors.top: hashText.bottom
+        anchors.top: hashChip.bottom
         anchors.topMargin: 4
         anchors.horizontalCenter: parent.horizontalCenter
         width: Theme.columnWidth - 16

@@ -24,14 +24,15 @@ class GitRepo:
     def __init__(self, path: Path) -> None:
         self.path = path
 
-    def git(self, *args: str) -> str:
+    def git(self, *args: str, env: dict[str, str] | None = None) -> str:
+        """Run git in the repository; ``env`` adds variables (e.g. ``GIT_COMMITTER_DATE``)."""
         result = subprocess.run(
             ["git", *args],
             cwd=self.path,
             check=True,
             capture_output=True,
             text=True,
-            env=_isolated_git_env(),
+            env={**_isolated_git_env(), **(env or {})},
         )
         return result.stdout
 

@@ -41,9 +41,13 @@ def test_branch_label_sits_on_its_commit_and_head_is_attached_to_it(repo: GitRep
     model = LiveViewModel(repo.path)
     model.notifyRepositoryChanged()
 
-    assert rows(model, "branchLabels") == [
-        {"name": "main", "commitHash": tip, "column": 1, "hasHead": True}
-    ]
+    [label] = rows(model, "branchLabels")
+    assert {k: label[k] for k in ("name", "commitHash", "column", "hasHead")} == {
+        "name": "main",
+        "commitHash": tip,
+        "column": 1,
+        "hasHead": True,
+    }
     assert prop(model, "headBranch") == "main"
     assert prop(model, "headDetached") is False
     assert prop(model, "headCommitHash") == tip

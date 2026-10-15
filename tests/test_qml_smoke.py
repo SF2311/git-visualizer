@@ -42,3 +42,28 @@ def test_qml_view_loads_without_warnings(
     for root in engine.rootObjects():
         root.deleteLater()
     qapp.processEvents()
+
+
+def test_qml_view_loads_a_branching_history_without_warnings(
+    repo: GitRepo, qapp: QGuiApplication, qt_messages: list[str]
+) -> None:
+    for i in range(4):
+        repo.commit(f"Alt {i}")
+    repo.git("switch", "-q", "-c", "feature")
+    repo.commit("Feature", file="feature.txt")
+    repo.git("tag", "v1.0")
+    repo.git("switch", "-q", "main")
+    repo.commit("Hauptlinie")
+    repo.git("merge", "-q", "--no-edit", "feature")
+    repo.git("checkout", "-q", "--detach", "feature")
+    model = LiveViewModel(repo.path, max_commits=4)
+    model.notifyRepositoryChanged()
+
+    engine = create_engine(model)
+    qapp.processEvents()
+
+    assert engine.rootObjects(), "Main.qml did not load"
+    assert qt_messages == []
+    for root in engine.rootObjects():
+        root.deleteLater()
+    qapp.processEvents()

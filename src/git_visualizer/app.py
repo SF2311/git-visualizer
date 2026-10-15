@@ -11,7 +11,7 @@ from PySide6.QtCore import QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 
-from git_visualizer.git_reader import NotARepositoryError
+from git_visualizer.git_reader import DEFAULT_MAX_COMMITS, NotARepositoryError
 from git_visualizer.live_view import LiveViewModel
 
 QML_DIR = Path(__file__).parent / "qml"
@@ -31,7 +31,22 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
         description="Live View eines git-Repositorys für die Vorlesung.",
     )
     parser.add_argument("repository", type=Path, help="Pfad zum beobachteten Repository")
+    parser.add_argument(
+        "--max-commits",
+        type=_positive_int,
+        default=DEFAULT_MAX_COMMITS,
+        metavar="N",
+        help=f"Anzahl der neuesten angezeigten Commits; ältere werden zu „…“ "
+        f"zusammengefasst (Standard: {DEFAULT_MAX_COMMITS})",
+    )
     return parser.parse_args(argv)
+
+
+def _positive_int(value: str) -> int:
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError("muss mindestens 1 sein")
+    return number
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -39,7 +54,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     app = QGuiApplication(sys.argv[:1])
     app.setApplicationName("Git Visualizer")
 
-    model = LiveViewModel(args.repository.resolve())
+    model = LiveViewModel(args.repository.resolve(), max_commits=args.max_commits)
     try:
         model.notifyRepositoryChanged()
     except NotARepositoryError:

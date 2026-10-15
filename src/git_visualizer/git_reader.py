@@ -10,7 +10,12 @@ import os
 import subprocess
 from pathlib import Path
 
-from git_visualizer.snapshot import Branch, Commit, Head, RepositorySnapshot
+from git_visualizer.snapshot import Branch, Commit, Head, RepositorySnapshot, Tag
+
+DEFAULT_MAX_COMMITS = 30
+"""Default display limit: how many of the most recent commits the History shows."""
+
+_COMMIT_FORMAT = "--format=%H%x00%P%x00%s%x1e"
 
 
 class GitError(RuntimeError):
@@ -21,15 +26,31 @@ class NotARepositoryError(GitError):
     pass
 
 
-def read_snapshot(repository_path: Path) -> RepositorySnapshot:
-    """Read an immutable Repository Snapshot of the repository at ``repository_path``."""
+def read_snapshot(
+    repository_path: Path, *, max_commits: int = DEFAULT_MAX_COMMITS
+) -> RepositorySnapshot:
+    """Read an immutable Repository Snapshot of the repository at ``repository_path``.
+
+    The History holds commits reachable from local branches, tags and HEAD (never
+    ``refs/stash``): the ``max_commits`` most recent ones plus any ref tip beyond them.
+    """
     git = _Git(repository_path)
     if git.run_optional("rev-parse", "--git-dir") is None:
         raise NotARepositoryError(str(repository_path))
     head = _read_head(git)
     branches = _read_branches(git)
-    commits = _read_commits(git, has_head_commit=head.commit_hash is not None)
-    return RepositorySnapshot(commits=commits, branches=branches, head=head)
+    tags = _read_tags(git)
+    tips = [branch.commit_hash for branch in branches] + [tag.commit_hash for tag in tags]
+    if head.commit_hash is not None:
+        tips.append(head.commit_hash)
+    commits, hidden_commit_count = _read_commits(git, tips, max_commits=max_commits)
+    return RepositorySnapshot(
+        commits=commits,
+        branches=branches,
+        head=head,
+        tags=tags,
+        hidden_commit_count=hidden_commit_count,
+    )
 
 
 class _Git:
@@ -42,18 +63,19 @@ class _Git:
         env.pop("GIT_WORK_TREE", None)
         self._env = env
 
-    def run(self, *args: str) -> str:
-        result = self._run(args)
+    def run(self, *args: str, stdin: str | None = None) -> str:
+        """Run git; ``stdin`` is fed to it (e.g. revisions for ``--stdin``)."""
+        result = self._run(args, stdin)
         if result.returncode != 0:
             raise GitError(f"git {' '.join(args)}: {result.stderr.strip()}")
         return result.stdout
 
     def run_optional(self, *args: str) -> str | None:
         """Run git; ``None`` instead of an error if it exits non-zero."""
-        result = self._run(args)
+        result = self._run(args, None)
         return result.stdout if result.returncode == 0 else None
 
-    def _run(self, args: tuple[str, ...]) -> subprocess.CompletedProcess[str]:
+    def _run(self, args: tuple[str, ...], stdin: str | None) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             ["git", "--no-optional-locks", "-C", str(self._path), *args],
             capture_output=True,
@@ -61,7 +83,7 @@ class _Git:
             encoding="utf-8",
             errors="replace",
             env=self._env,
-            stdin=subprocess.DEVNULL,
+            input=stdin if stdin is not None else "",
         )
 
 
@@ -83,12 +105,47 @@ def _read_branches(git: _Git) -> tuple[Branch, ...]:
     return tuple(branches)
 
 
-def _read_commits(git: _Git, *, has_head_commit: bool) -> tuple[Commit, ...]:
-    """Commits reachable from local branches and HEAD, newest first (topological order)."""
-    revisions = ["--branches"]
-    if has_head_commit:
-        revisions.append("HEAD")
-    output = git.run("log", "--topo-order", "--format=%H%x00%P%x00%s%x1e", *revisions, "--")
+def _read_tags(git: _Git) -> tuple[Tag, ...]:
+    """Tags pointing (directly or via an annotated tag) at a commit."""
+    output = git.run(
+        "for-each-ref",
+        "--format=%(refname:short)%00%(objecttype)%00%(objectname)%00%(*objecttype)%00%(*objectname)",
+        "refs/tags",
+    )
+    tags = []
+    for line in output.splitlines():
+        name, kind, target, peeled_kind, peeled_target = line.split("\0")
+        if kind == "commit":
+            tags.append(Tag(name=name, commit_hash=target))
+        elif peeled_kind == "commit":
+            tags.append(Tag(name=name, commit_hash=peeled_target))
+    return tuple(tags)
+
+
+def _read_commits(
+    git: _Git, tips: list[str], *, max_commits: int
+) -> tuple[tuple[Commit, ...], int]:
+    """The most recent ``max_commits`` commits reachable from ``tips`` (children before
+    parents), plus tips not among them; and how many reachable commits are left out."""
+    if not tips:
+        return (), 0
+    revisions = "\n".join(dict.fromkeys(tips)) + "\n"
+    commits = _parse_commits(
+        git.run("log", "--date-order", f"--max-count={max_commits}", _COMMIT_FORMAT, "--stdin", stdin=revisions)
+    )
+    if len(commits) < max_commits:
+        return tuple(commits), 0
+    shown = {commit.hash for commit in commits}
+    missing_tips = [tip for tip in dict.fromkeys(tips) if tip not in shown]
+    if missing_tips:
+        commits += _parse_commits(
+            git.run("log", "--no-walk=unsorted", _COMMIT_FORMAT, "--stdin", stdin="\n".join(missing_tips) + "\n")
+        )
+    total = int(git.run("rev-list", "--count", "--stdin", stdin=revisions).strip())
+    return tuple(commits), total - len(commits)
+
+
+def _parse_commits(output: str) -> list[Commit]:
     commits = []
     for record in output.split("\x1e"):
         record = record.strip("\n")
@@ -96,4 +153,4 @@ def _read_commits(git: _Git, *, has_head_commit: bool) -> tuple[Commit, ...]:
             continue
         commit_hash, parents, subject = record.split("\0", 2)
         commits.append(Commit(hash=commit_hash, parents=tuple(parents.split()), subject=subject))
-    return tuple(commits)
+    return commits
