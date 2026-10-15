@@ -230,7 +230,8 @@ class LiveViewModel(QObject):
         transitions = history_transitions(self._snapshot, snapshot) if self._has_read else []
         if self._has_read:
             transitions = self._update_ghost_commits(snapshot, transitions)
-            transitions = transitions + file_transitions(self._snapshot, snapshot)
+            added = {t.to_hash for t in transitions if t.kind is TransitionKind.COMMIT_ADDED}
+            transitions = transitions + file_transitions(self._snapshot, snapshot, added)
         self._has_read = True
         self._set_transitions(transitions)
         self._snapshot = snapshot

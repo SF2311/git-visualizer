@@ -169,6 +169,27 @@ def test_soft_reset_makes_the_committed_files_appear_in_the_staging_area(repo: G
     assert _file_transitions(model) == [("fileAppeared", "login.py", "", SA, "")]
 
 
+def test_checking_out_a_ghost_commit_commits_no_files(repo: GitRepo) -> None:
+    repo.commit("Erster Commit")
+    original = repo.commit("Login", file="login.py")
+    model = _watching(repo)
+    repo.write("login.py", "Login korrigiert\n")
+    repo.git("add", "login.py")
+    repo.git("commit", "-q", "--amend", "-m", "Login (korrigiert)")
+    model.notifyRepositoryChanged()
+    assert original in prop(model, "ghostCommitHashes")
+    repo.write("login.py", "Login\n")  # the Ghost Commit's content, staged
+    repo.git("add", "login.py")
+    model.notifyRepositoryChanged()
+    assert _files(model, "stagingAreaFiles") == [("login.py", "modified")]
+
+    repo.git("checkout", "-q", "--detach", original)
+    model.notifyRepositoryChanged()
+
+    assert _head(repo) == original
+    assert _file_transitions(model) == [("fileDisappeared", "login.py", SA, "", "")]
+
+
 def test_unchanged_files_and_unchanged_refreshes_have_no_file_transitions(repo: GitRepo) -> None:
     repo.commit("Erster Commit")
     repo.write("notizen.txt", "neu\n")

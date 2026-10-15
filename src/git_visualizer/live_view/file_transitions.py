@@ -3,14 +3,16 @@ Repository Snapshots.
 
 Files are matched by path. A file that left one area and is listed in the other
 afterwards *moved* (``add``, ``restore --staged``). When HEAD moved to a newly created
-commit, files that left an area without moving went into that commit (``commit``,
-``commit -a``, ``commit --amend``); a file leaving the Staging Area then counts as
-committed even if it is still listed in the Working Tree (a partially staged file).
+commit (one not shown before, not even as a Ghost Commit), files that left an area
+without moving went into that commit (``commit``, ``commit -a``, ``commit --amend``); a
+file leaving the Staging Area then counts as committed even if it is still listed in
+the Working Tree (a partially staged file).
 Everything else appeared or disappeared.
 """
 
 from __future__ import annotations
 
+from collections.abc import Collection
 from enum import StrEnum
 
 from git_visualizer.live_view.transitions import Transition, TransitionKind
@@ -32,8 +34,13 @@ class Area(StrEnum):
     STAGING_AREA = "stagingArea"
 
 
-def file_transitions(previous: RepositorySnapshot, current: RepositorySnapshot) -> list[Transition]:
-    """File transitions in the order the files were listed before, then new arrivals."""
+def file_transitions(
+    previous: RepositorySnapshot, current: RepositorySnapshot, added_commits: Collection[str]
+) -> list[Transition]:
+    """File transitions in the order the files were listed before, then new arrivals.
+
+    ``added_commits`` are the commits not shown before, not even as Ghost Commits (the
+    ``commitAdded`` transitions); only HEAD moving to one of them commits files."""
     before = {
         Area.WORKING_TREE: [entry.path for entry in previous.working_tree],
         Area.STAGING_AREA: [entry.path for entry in previous.staging_area],
@@ -42,7 +49,7 @@ def file_transitions(previous: RepositorySnapshot, current: RepositorySnapshot) 
         Area.WORKING_TREE: {entry.path for entry in current.working_tree},
         Area.STAGING_AREA: {entry.path for entry in current.staging_area},
     }
-    new_commit = _new_head_commit(previous, current)
+    new_commit = _new_head_commit(current, added_commits)
     transitions: list[Transition] = []
     arrived: set[tuple[Area, str]] = set()
     for area, other in ((Area.WORKING_TREE, Area.STAGING_AREA), (Area.STAGING_AREA, Area.WORKING_TREE)):
@@ -66,11 +73,7 @@ def file_transitions(previous: RepositorySnapshot, current: RepositorySnapshot) 
     return transitions
 
 
-def _new_head_commit(previous: RepositorySnapshot, current: RepositorySnapshot) -> str:
+def _new_head_commit(current: RepositorySnapshot, added_commits: Collection[str]) -> str:
     """The commit HEAD moved to if it was just created, else ""."""
     head = current.head.commit_hash
-    if head is None or head == previous.head.commit_hash:
-        return ""
-    if head in {commit.hash for commit in previous.commits}:
-        return ""
-    return head
+    return head if head is not None and head in added_commits else ""
