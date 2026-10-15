@@ -25,7 +25,9 @@ Window {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        height: parent.height * 2 / 3
+        // Room for the In-progress Operation banner, so it never covers the History.
+        anchors.topMargin: banner.reservedHeight
+        height: parent.height * 2 / 3 - banner.reservedHeight
     }
 
     ThreeAreasStrip {
@@ -35,6 +37,15 @@ Window {
         anchors.right: parent.right
         anchors.top: history.bottom
         anchors.bottom: parent.bottom
+    }
+
+    OperationBanner {
+        id: banner
+        text: window.liveView.operationBanner
+        conflictCount: window.liveView.conflictCount
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: Theme.bannerMargin
     }
 
     WaitingForRepository {

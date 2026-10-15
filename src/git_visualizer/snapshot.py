@@ -82,6 +82,29 @@ class FileEntry:
     conflicted: bool = False
 
 
+class OperationKind(StrEnum):
+    """Kind of In-progress Operation."""
+
+    MERGE = "merge"
+    REBASE = "rebase"
+    CHERRY_PICK = "cherry-pick"
+    REVERT = "revert"
+
+
+@dataclass(frozen=True)
+class InProgressOperation:
+    """A merge, rebase, cherry-pick or revert that git has started but not finished.
+
+    ``step``/``total`` give rebase progress (commit ``step`` of ``total``; both 0 when
+    git records none). ``conflict_count`` is the number of unmerged files.
+    """
+
+    kind: OperationKind
+    conflict_count: int = 0
+    step: int = 0
+    total: int = 0
+
+
 @dataclass(frozen=True)
 class RepositorySnapshot:
     """``commits`` are the shown part of the History, newest first (children before
@@ -95,6 +118,7 @@ class RepositorySnapshot:
     hidden_commit_count: int = 0
     working_tree: tuple[FileEntry, ...] = ()
     staging_area: tuple[FileEntry, ...] = ()
+    in_progress_operation: InProgressOperation | None = None
 
     @classmethod
     def empty(cls) -> RepositorySnapshot:
