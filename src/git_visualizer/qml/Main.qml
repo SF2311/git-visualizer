@@ -23,9 +23,19 @@ Window {
         liveView: window.liveView
         visible: window.liveView.isRepository
         anchors.left: parent.left
-        anchors.right: parent.right
+        anchors.right: remoteBoxes.left
         anchors.top: parent.top
         height: parent.height * 2 / 3
+    }
+
+    RemoteBoxes {
+        id: remoteBoxes
+        liveView: window.liveView
+        visible: window.liveView.isRepository
+        width: visible ? implicitWidth : 0
+        anchors.right: parent.right
+        anchors.top: parent.top
+        height: history.height
     }
 
     ThreeAreasStrip {

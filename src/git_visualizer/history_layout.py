@@ -5,17 +5,19 @@
   display limit) are in column 0.
 * Lanes (rows): every branch owns the commits along its first-parent chain that no
   earlier branch owns; branches are taken in the given (stable) order, each owning
-  branch gets its own lane. Commits owned by no branch (detached HEAD, tags, merged and
-  deleted branches) form anonymous chains packed into free space of the lanes below.
+  branch gets its own lane. Commits owned by no branch (Remote-tracking Branches,
+  detached HEAD, tags, merged and deleted branches) form anonymous chains packed into
+  free space of the lanes below. A chain reached from a Remote-tracking Branch that is
+  a local branch's Upstream (e.g. fetched, unmerged commits) takes that branch's color.
 * Labels on one commit are stacked: detached HEAD nearest the commit, then branch
-  labels in branch order, then tags. An attached HEAD sits directly above its
-  branch label.
+  labels in branch order, then Remote-tracking Branches, then tags. An attached HEAD
+  sits directly above its branch label.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from git_visualizer.snapshot import Branch, Commit, RepositorySnapshot
 
@@ -38,7 +40,7 @@ class HistoryLayout:
     columns: dict[str, int]
     lanes: dict[str, int]
     owners: dict[str, str | None]
-    """Branch owning each commit (``None`` for commits on an anonymous chain)."""
+    """Branch whose color each commit takes (``None`` for commits on no branch)."""
     bands: tuple[LaneBand, ...]
     branch_slots: dict[str, int]
     tag_slots: dict[str, int]
@@ -46,6 +48,10 @@ class HistoryLayout:
     """Stack slot of the HEAD marker on its commit; -1 when HEAD has no commit."""
     lane_label_slots: tuple[int, ...]
     """Per lane: the most label slots used on any one of its commits."""
+    remote_tracking_slots: dict[str, int] = field(default_factory=dict)
+    upstream_of: dict[str, str] = field(default_factory=dict)
+    """Remote-tracking Branch name → the local branch it is the Upstream of (the first
+    in branch order when several share it)."""
 
     @property
     def column_count(self) -> int:
@@ -74,10 +80,16 @@ def layout_history(snapshot: RepositorySnapshot, branch_order: Sequence[str]) ->
 
     branch_chains = [(b.name, claim_chain(b.commit_hash, b.name)) for b in branches]
     branch_chains = [(name, chain) for name, chain in branch_chains if chain]
+    upstream_of = _upstream_pairs(snapshot, branches)
+    anonymous_chains = [
+        chain
+        for tracking in snapshot.remote_tracking_branches
+        if (chain := claim_chain(tracking.commit_hash, upstream_of.get(tracking.name)))
+    ]
     other_tips = [snapshot.head.commit_hash] if snapshot.head.commit_hash else []
     other_tips += [tag.commit_hash for tag in snapshot.tags]
     other_tips += [commit.hash for commit in commits]
-    anonymous_chains = [chain for tip in other_tips if (chain := claim_chain(tip, None))]
+    anonymous_chains += [chain for tip in other_tips if (chain := claim_chain(tip, None))]
 
     lanes: dict[str, int] = {}
     occupied: list[list[tuple[int, int]]] = []
@@ -98,7 +110,7 @@ def layout_history(snapshot: RepositorySnapshot, branch_order: Sequence[str]) ->
         occupied[lane].append(span)
         lanes.update(dict.fromkeys(chain, lane))
 
-    branch_slots, tag_slots, head_slot, slots_per_commit = _stack_labels(snapshot, branches)
+    branch_slots, tracking_slots, tag_slots, head_slot, slots_per_commit = _stack_labels(snapshot, branches)
     lane_label_slots = [0] * len(occupied)
     for commit_hash, count in slots_per_commit.items():
         if commit_hash in lanes:
@@ -114,7 +126,18 @@ def layout_history(snapshot: RepositorySnapshot, branch_order: Sequence[str]) ->
         tag_slots=tag_slots,
         head_slot=head_slot,
         lane_label_slots=tuple(lane_label_slots),
+        remote_tracking_slots=tracking_slots,
+        upstream_of=upstream_of,
     )
+
+
+def _upstream_pairs(snapshot: RepositorySnapshot, ordered_branches: Sequence[Branch]) -> dict[str, str]:
+    tracking_names = {tracking.name for tracking in snapshot.remote_tracking_branches}
+    pairs: dict[str, str] = {}
+    for branch in ordered_branches:
+        if branch.upstream in tracking_names and branch.upstream not in pairs:
+            pairs[branch.upstream] = branch.name
+    return pairs
 
 
 def commit_columns(commits: Sequence[Commit]) -> dict[str, int]:
@@ -150,7 +173,7 @@ def _overlaps(a: tuple[int, int], b: tuple[int, int]) -> bool:
 
 def _stack_labels(
     snapshot: RepositorySnapshot, ordered_branches: Sequence[Branch]
-) -> tuple[dict[str, int], dict[str, int], int, dict[str, int]]:
+) -> tuple[dict[str, int], dict[str, int], dict[str, int], int, dict[str, int]]:
     used: dict[str, int] = {}
 
     def next_slot(commit_hash: str) -> int:
@@ -167,5 +190,9 @@ def _stack_labels(
         branch_slots[branch.name] = next_slot(branch.commit_hash)
         if branch.name == head.branch_name:
             head_slot = next_slot(branch.commit_hash)
+    tracking_slots = {
+        tracking.name: next_slot(tracking.commit_hash)
+        for tracking in sorted(snapshot.remote_tracking_branches, key=lambda t: t.name)
+    }
     tag_slots = {tag.name: next_slot(tag.commit_hash) for tag in sorted(snapshot.tags, key=lambda t: t.name)}
-    return branch_slots, tag_slots, head_slot, used
+    return branch_slots, tracking_slots, tag_slots, head_slot, used

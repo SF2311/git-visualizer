@@ -19,6 +19,9 @@ re-reads the repository manually (hidden fallback).
 `--max-commits N` limits the History to the N most recent commits (default 30);
 older history is collapsed into "…".
 
+The Live View never fetches: Remote-tracking Branches and "zuletzt geholt" in the
+Remote boxes change only after the lecturer runs `fetch`, `pull` or `push`.
+
 ## Development
 
 ```sh
@@ -31,6 +34,7 @@ python3 -m venv .venv
 Layout (`src/git_visualizer/`):
 
 - `git_reader.py` — runs read-only git commands and produces an immutable Repository Snapshot (`snapshot.py`)
+- `remote_reader.py` — Remotes, Remote-tracking Branches and last-fetch times from local metadata (never contacts a Remote)
 - `history_layout.py` — columns by ancestry, lanes per branch, label stacking
 - `watcher.py` — watches the git directory and the Working Tree, debounces, polls, calls "repository changed"
 - `live_view/` — `LiveViewModel`, the single object QML binds to and the single test seam

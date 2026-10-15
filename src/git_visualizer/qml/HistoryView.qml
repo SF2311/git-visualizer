@@ -156,6 +156,19 @@ Item {
     }
 
     Repeater {
+        model: root.liveView.remoteTrackingLabels
+
+        RemoteTrackingLabel {
+            required property int column
+            required property int lane
+            required property int stackIndex
+            visible: column >= 0
+            x: root.columnCenterX(column) - width / 2
+            y: root.slotY(lane, stackIndex)
+        }
+    }
+
+    Repeater {
         model: root.liveView.tagLabels
 
         TagLabel {

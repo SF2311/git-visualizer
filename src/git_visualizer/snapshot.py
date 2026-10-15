@@ -29,10 +29,37 @@ class Commit:
 
 @dataclass(frozen=True)
 class Branch:
-    """A local branch: ``refs/heads/<name>`` pointing at ``commit_hash``."""
+    """A local branch: ``refs/heads/<name>`` pointing at ``commit_hash``.
+
+    ``upstream`` is the configured Upstream (short name, e.g. ``origin/main``) from the
+    branch configuration, never inferred from names. ``ahead``/``behind`` count commits
+    relative to it; both are ``None`` without an Upstream or when its ref is gone.
+    """
 
     name: str
     commit_hash: str
+    upstream: str | None = None
+    ahead: int | None = None
+    behind: int | None = None
+
+
+@dataclass(frozen=True)
+class RemoteTrackingBranch:
+    """A Remote-tracking Branch ``refs/remotes/<name>`` (e.g. ``origin/main``) of ``remote``."""
+
+    name: str
+    remote: str
+    commit_hash: str
+
+
+@dataclass(frozen=True)
+class Remote:
+    """A configured Remote. ``last_fetched`` is a Unix timestamp of its last fetch (or
+    clone/pull), ``None`` if it was never fetched."""
+
+    name: str
+    url: str
+    last_fetched: float | None = None
 
 
 @dataclass(frozen=True)
@@ -95,6 +122,8 @@ class RepositorySnapshot:
     hidden_commit_count: int = 0
     working_tree: tuple[FileEntry, ...] = ()
     staging_area: tuple[FileEntry, ...] = ()
+    remote_tracking_branches: tuple[RemoteTrackingBranch, ...] = ()
+    remotes: tuple[Remote, ...] = ()
 
     @classmethod
     def empty(cls) -> RepositorySnapshot:

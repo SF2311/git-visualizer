@@ -17,7 +17,17 @@ Interface:
   parent edges (merges) the parent's. ``toCollapsed`` edges lead to a parent hidden by
   the display limit; they end at column -1 in the child's lane.
 * ``branchLabels`` — list model, one row per local branch (roles: ``name``,
-  ``commitHash``, ``column``, ``lane``, ``colorIndex``, ``stackIndex``, ``hasHead``).
+  ``commitHash``, ``column``, ``lane``, ``colorIndex``, ``stackIndex``, ``hasHead``,
+  ``upstream`` ("" without Upstream), ``ahead``/``behind`` (-1 without Upstream or
+  when the Upstream's ref is gone)).
+* ``remoteTrackingLabels`` — list model, one row per Remote-tracking Branch (roles:
+  ``name`` (e.g. ``origin/main``), ``remote``, ``commitHash``, ``column``, ``lane``,
+  ``colorIndex`` (its local branch's when it is that branch's Upstream, else -1),
+  ``stackIndex``, ``isUpstream``).
+* ``remotes`` — list model, one row per Remote box (roles: ``name``, ``url``,
+  ``shortUrl``, ``lastFetched`` (Unix seconds, 0 if never fetched),
+  ``trackingBranches`` (list of ``{name, colorIndex}``)). ``lastFetchText(lastFetched,
+  now)`` renders "zuletzt geholt vor 12 Min.". The Live View never fetches.
 * ``tagLabels`` — list model, one row per tag (roles: ``name``, ``commitHash``,
   ``column``, ``lane``, ``stackIndex``).
 * ``laneBands`` — list model, the stretch of a lane owned by a branch (roles:
@@ -49,6 +59,13 @@ from git_visualizer.git_reader import DEFAULT_MAX_COMMITS, NotARepositoryError, 
 from git_visualizer.history_layout import HistoryLayout, commit_columns, layout_history
 from git_visualizer.live_view.branch_colors import BranchColors
 from git_visualizer.live_view.list_model import RowListModel
+from git_visualizer.live_view.remotes import (
+    REMOTE_ROLES,
+    REMOTE_TRACKING_ROLES,
+    last_fetch_text,
+    remote_rows,
+    remote_tracking_rows,
+)
 from git_visualizer.live_view.three_areas import FILE_ROLES, file_rows
 from git_visualizer.snapshot import RepositorySnapshot
 
@@ -92,7 +109,19 @@ class LiveViewModel(QObject):
             self,
         )
         self._branch_labels = RowListModel(
-            ("name", "commitHash", "column", "lane", "colorIndex", "stackIndex", "hasHead"), self
+            (
+                "name",
+                "commitHash",
+                "column",
+                "lane",
+                "colorIndex",
+                "stackIndex",
+                "hasHead",
+                "upstream",
+                "ahead",
+                "behind",
+            ),
+            self,
         )
         self._tag_labels = RowListModel(("name", "commitHash", "column", "lane", "stackIndex"), self)
         self._lane_bands = RowListModel(
@@ -100,6 +129,8 @@ class LiveViewModel(QObject):
         )
         self._is_repository = False
         self._working_tree_files = RowListModel(FILE_ROLES, self)
+        self._remote_tracking_labels = RowListModel(REMOTE_TRACKING_ROLES, self)
+        self._remotes = RowListModel(REMOTE_ROLES, self)
         self._staging_area_files = RowListModel(FILE_ROLES, self)
 
     @Slot()
@@ -168,6 +199,9 @@ class LiveViewModel(QObject):
                     "colorIndex": self._branch_colors.color_index(branch.name),
                     "stackIndex": layout.branch_slots[branch.name],
                     "hasHead": branch.name == snapshot.head.branch_name,
+                    "upstream": branch.upstream or "",
+                    "ahead": -1 if branch.ahead is None else branch.ahead,
+                    "behind": -1 if branch.behind is None else branch.behind,
                 }
                 for branch in snapshot.branches
             ]
@@ -195,6 +229,11 @@ class LiveViewModel(QObject):
                 for band in layout.bands
             ]
         )
+        color_of = self._branch_colors.color_index
+        self._remote_tracking_labels.set_rows(
+            remote_tracking_rows(snapshot, layout, color_of, lambda h: _position(layout, h))
+        )
+        self._remotes.set_rows(remote_rows(snapshot, layout, color_of))
         self.historyChanged.emit()
         self._working_tree_files.set_rows(file_rows(snapshot.working_tree))
         self._staging_area_files.set_rows(file_rows(snapshot.staging_area))
@@ -212,6 +251,23 @@ class LiveViewModel(QObject):
         return self._staging_area_files
 
     stagingAreaFiles = Property(QObject, _get_staging_area_files, constant=True)
+
+    # --- Remotes -----------------------------------------------------------------
+
+    def _get_remote_tracking_labels(self) -> RowListModel:
+        return self._remote_tracking_labels
+
+    remoteTrackingLabels = Property(QObject, _get_remote_tracking_labels, constant=True)
+
+    def _get_remotes(self) -> RowListModel:
+        return self._remotes
+
+    remotes = Property(QObject, _get_remotes, constant=True)
+
+    @Slot(float, float, result=str)
+    def lastFetchText(self, last_fetched: float, now: float) -> str:
+        """German relative last-fetch time; QML passes ``now`` so the text stays current."""
+        return last_fetch_text(last_fetched, now)
 
     # --- Repository selection ---------------------------------------------------
 

@@ -11,6 +11,7 @@ import subprocess
 from pathlib import Path
 
 from git_visualizer.file_status import STATUS_ARGS, parse_status
+from git_visualizer.remote_reader import read_remotes
 from git_visualizer.snapshot import Branch, Commit, Head, RepositorySnapshot, Tag
 
 DEFAULT_MAX_COMMITS = 30
@@ -32,8 +33,8 @@ def read_snapshot(
 ) -> RepositorySnapshot:
     """Read an immutable Repository Snapshot of the repository at ``repository_path``.
 
-    The History holds commits reachable from local branches, tags and HEAD (never
-    ``refs/stash``): the ``max_commits`` most recent ones plus any ref tip beyond them.
+    The History holds commits reachable from local branches, Remote-tracking Branches,
+    tags and HEAD (never ``refs/stash``): the ``max_commits`` most recent ones plus any ref tip beyond them.
     """
     git = _Git(repository_path)
     if git.run_optional("rev-parse", "--git-dir") is None:
@@ -41,7 +42,10 @@ def read_snapshot(
     head = _read_head(git)
     branches = _read_branches(git)
     tags = _read_tags(git)
-    tips = [branch.commit_hash for branch in branches] + [tag.commit_hash for tag in tags]
+    remotes, remote_tracking_branches = read_remotes(git)
+    tips = [branch.commit_hash for branch in branches]
+    tips += [tracking.commit_hash for tracking in remote_tracking_branches]
+    tips += [tag.commit_hash for tag in tags]
     if head.commit_hash is not None:
         tips.append(head.commit_hash)
     commits, hidden_commit_count = _read_commits(git, tips, max_commits=max_commits)
@@ -54,6 +58,8 @@ def read_snapshot(
         hidden_commit_count=hidden_commit_count,
         working_tree=working_tree,
         staging_area=staging_area,
+        remote_tracking_branches=remote_tracking_branches,
+        remotes=remotes,
     )
 
 
@@ -101,12 +107,31 @@ def _read_head(git: _Git) -> Head:
 
 
 def _read_branches(git: _Git) -> tuple[Branch, ...]:
-    output = git.run("for-each-ref", "--format=%(refname:short)%00%(objectname)", "refs/heads")
+    """Local branches with their configured Upstream and ahead/behind against it."""
+    output = git.run(
+        "for-each-ref",
+        "--format=%(refname:short)%00%(objectname)%00%(upstream:short)%00%(upstream:track,nobracket)",
+        "refs/heads",
+    )
     branches = []
     for line in output.splitlines():
-        name, commit_hash = line.split("\0")
-        branches.append(Branch(name=name, commit_hash=commit_hash))
+        name, commit_hash, upstream, track = line.split("\0")
+        ahead, behind = _parse_track(track) if upstream else (None, None)
+        branches.append(
+            Branch(name=name, commit_hash=commit_hash, upstream=upstream or None, ahead=ahead, behind=behind)
+        )
     return tuple(branches)
+
+
+def _parse_track(track: str) -> tuple[int | None, int | None]:
+    """``ahead 2, behind 1`` → (2, 1); in sync → (0, 0); Upstream ref gone → (None, None)."""
+    if track == "gone":
+        return None, None
+    counts = {"ahead": 0, "behind": 0}
+    for part in filter(None, (p.strip() for p in track.split(","))):
+        direction, _, count = part.partition(" ")
+        counts[direction] = int(count)
+    return counts["ahead"], counts["behind"]
 
 
 def _read_tags(git: _Git) -> tuple[Tag, ...]:

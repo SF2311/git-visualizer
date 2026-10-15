@@ -84,3 +84,33 @@ def test_watching_leaves_the_repository_untouched(repo: GitRepo, qapp: QGuiAppli
 
     assert _repository_state(repo.path) == before
     assert list(repo.path.rglob("*.lock")) == []
+
+
+def test_refresh_with_remotes_never_contacts_them(repo: GitRepo, tmp_path: Path) -> None:
+    remote = tmp_path / "remote.git"
+    GitRepo(tmp_path).git("init", "-q", "--bare", "-b", "main", str(remote))
+    repo.commit("Erster Commit")
+    repo.git("remote", "add", "origin", str(remote))
+    repo.git("push", "-q", "-u", "origin", "main")
+    repo.git("fetch", "-q")  # reflogs and FETCH_HEAD now exist and are read
+    repo.commit("Lokal")  # ahead of the Upstream
+    # Any contact with the Remote (fetch, ls-remote, …) would run this upload-pack.
+    marker = tmp_path / "contacted"
+    spy = tmp_path / "spy-upload-pack"
+    spy.write_text(f"#!/bin/sh\ntouch '{marker}'\nexec git-upload-pack \"$@\"\n")
+    spy.chmod(0o755)
+    repo.git("config", "remote.origin.uploadpack", str(spy))
+    before = _repository_state(repo.path)
+    remote_before = _repository_state(remote)
+
+    model = LiveViewModel(repo.path)
+    for _ in range(3):
+        model.notifyRepositoryChanged()
+
+    assert not marker.exists()
+    assert _repository_state(repo.path) == before
+    assert _repository_state(remote) == remote_before
+    assert list(repo.path.rglob("*.lock")) == []
+    # Guard the scenario itself: a real fetch does run the spy.
+    repo.git("fetch", "-q")
+    assert marker.exists()

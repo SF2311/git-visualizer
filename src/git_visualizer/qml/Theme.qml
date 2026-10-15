@@ -69,4 +69,18 @@ QtObject {
     readonly property int fileFontSize: Math.round(20 * zoom)
     readonly property int changeFontSize: Math.round(15 * zoom)
     readonly property real fileRowHeight: 40 * zoom
+
+    // Remotes and Upstream (ticket 09)
+    readonly property color remoteBoxFill: dark ? "#1f2430" : "#ffffff"
+    readonly property color remoteBoxBorder: dark ? "#4a5366" : "#c4c9d2"
+    readonly property color remoteTrackingFill: background
+    readonly property real remoteTrackingBorderWidth: 3 * zoom
+    readonly property real remoteBoxWidth: 300 * zoom
+    readonly property real remoteBoxPadding: 16 * zoom
+    readonly property real remoteBoxSpacing: 16 * zoom
+    readonly property real remoteChipHeight: 32 * zoom
+    readonly property int remoteNameFontSize: Math.round(24 * zoom)
+    readonly property int remoteDetailFontSize: Math.round(16 * zoom)
+    readonly property int remoteChipFontSize: Math.round(16 * zoom)
+    readonly property int aheadBehindFontSize: Math.round(17 * zoom)
 }

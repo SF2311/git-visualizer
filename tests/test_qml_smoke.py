@@ -87,3 +87,30 @@ def test_qml_view_loads_without_warnings_in_a_non_repository_folder(
     for root in engine.rootObjects():
         root.deleteLater()
     qapp.processEvents()
+
+
+def test_qml_view_loads_remotes_and_upstream_without_warnings(
+    repo: GitRepo, tmp_path: Path, qapp: QGuiApplication, qt_messages: list[str]
+) -> None:
+    remote = tmp_path / "remote.git"
+    GitRepo(tmp_path).git("init", "-q", "--bare", "-b", "main", str(remote))
+    repo.commit("Erster Commit")
+    repo.git("remote", "add", "origin", str(remote))
+    repo.git("push", "-q", "-u", "origin", "main")
+    repo.git("switch", "-q", "-c", "feature")
+    repo.commit("Feature", file="feature.txt")
+    repo.git("push", "-q", "origin", "feature")  # no Upstream
+    repo.git("switch", "-q", "main")
+    repo.commit("Lokal")
+    repo.git("fetch", "-q")
+    model = LiveViewModel(repo.path)
+    model.notifyRepositoryChanged()
+
+    engine = create_engine(model)
+    qapp.processEvents()
+
+    assert engine.rootObjects(), "Main.qml did not load"
+    assert qt_messages == []
+    for root in engine.rootObjects():
+        root.deleteLater()
+    qapp.processEvents()
