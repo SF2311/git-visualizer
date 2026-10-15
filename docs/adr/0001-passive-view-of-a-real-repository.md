@@ -1,0 +1,3 @@
+# Passive view of a real repository, not a simulation
+
+The visualizer observes a real git repository that the lecturer manipulates with ordinary git in a separate terminal; it never changes the repository itself (no commands, no automatic `git fetch`). We rejected an in-browser git simulation with its own command line: a simulation would only support the commands we implement, whereas the lecture should show real git behaving exactly as students will experience it. Consequence: Remote-tracking Branches are only as fresh as the lecturer's last fetch, and Ghost Commits must be inferred from state changes, because the visualizer never sees the commands.
