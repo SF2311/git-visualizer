@@ -22,6 +22,24 @@ older history is collapsed into "…".
 The Live View never fetches: Remote-tracking Branches and "zuletzt geholt" in the
 Remote boxes change only after the lecturer runs `fetch`, `pull` or `push`.
 
+## Lecture demo and smoke checklist
+
+```sh
+git-visualizer-demo --live-view   # or without --live-view: start the printed git-visualizer command yourself
+```
+
+`git-visualizer-demo` walks a fresh repository through a typical lecture (init, commits,
+staging, branches, fast-forward and three-way merge, merge conflict, Ghost Commits after
+amend/rebase/`branch -D`, a paused rebase, a bare Remote with fetch/push, a colleague's
+push and ahead/behind). It creates everything in a new temporary folder and refuses to
+touch anything outside it. Each step prints a German explanation and the git commands,
+then waits for Enter (`q` quits; `--no-pause` runs straight through). It uses its own
+git identity and ignores your global git configuration.
+
+Before a lecture (or after changing the QML), run the demo against the Live View and
+work through [`docs/smoke-checklist.md`](docs/smoke-checklist.md): it covers every
+animation, both themes, zoom/auto-fit, the legend and the shortcut overlay.
+
 ## Development
 
 ```sh
@@ -40,6 +58,7 @@ Layout (`src/git_visualizer/`):
 - `live_view/` — `LiveViewModel`, the single object QML binds to and the single test seam
 - `qml/` — the view (`Main.qml`, `HistoryView.qml`, components, `Theme` singleton)
 - `app.py` — console entry point
+- `lecture_demo.py` — `git-visualizer-demo`, the step-by-step lecture demo
 
 Tests create real repositories in temporary directories, drive them with real `git`
 commands and assert only on what the Live View model exposes (`tests/model_output.py`).
