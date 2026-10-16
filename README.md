@@ -4,6 +4,9 @@ A read-only, projector-friendly Live View of a real git repository that the lect
 manipulates in a separate terminal. See `CONTEXT.md` for the vocabulary and
 `docs/adr/` for the key decisions. The user interface and the lecture demo are in German.
 
+![Live View: the History with merged branches `login` and `farbe`, HEAD on `main` one commit behind `origin/main`, the `origin` Remote box, and the Working Tree and Staging Area below](docs/assets/screenshot.png)
+
+
 ## Requirements
 
 - Python 3.11 or newer
