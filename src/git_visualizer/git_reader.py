@@ -6,23 +6,18 @@ disabled, so the Observed Repository is never modified and no lock files are tak
 
 from __future__ import annotations
 
-import os
-import subprocess
 from pathlib import Path
 
 from git_visualizer.file_status import STATUS_ARGS, parse_status
-from git_visualizer.remote_reader import read_remotes
+from git_visualizer.git_cli import GitCli, GitError
 from git_visualizer.in_progress_operation import read_in_progress_operation
+from git_visualizer.remote_reader import read_remotes
 from git_visualizer.snapshot import Branch, Commit, Head, RepositorySnapshot, Tag
 
 DEFAULT_MAX_COMMITS = 30
 """Default display limit: how many of the most recent commits the History shows."""
 
 _COMMIT_FORMAT = "--format=%H%x00%P%x00%s%x1e"
-
-
-class GitError(RuntimeError):
-    pass
 
 
 class NotARepositoryError(GitError):
@@ -37,7 +32,7 @@ def read_snapshot(
     The History holds commits reachable from local branches, Remote-tracking Branches,
     tags and HEAD (never ``refs/stash``): the ``max_commits`` most recent ones plus any ref tip beyond them.
     """
-    git = _Git(repository_path)
+    git = GitCli(repository_path)
     git_dir = git.run_optional("rev-parse", "--absolute-git-dir")
     if git_dir is None:
         raise NotARepositoryError(str(repository_path))
@@ -66,41 +61,7 @@ def read_snapshot(
     )
 
 
-class _Git:
-    def __init__(self, repository_path: Path) -> None:
-        self._path = repository_path
-        env = dict(os.environ)
-        env["GIT_OPTIONAL_LOCKS"] = "0"
-        env["LC_ALL"] = "C"
-        env.pop("GIT_DIR", None)
-        env.pop("GIT_WORK_TREE", None)
-        self._env = env
-
-    def run(self, *args: str, stdin: str | None = None) -> str:
-        """Run git; ``stdin`` is fed to it (e.g. revisions for ``--stdin``)."""
-        result = self._run(args, stdin)
-        if result.returncode != 0:
-            raise GitError(f"git {' '.join(args)}: {result.stderr.strip()}")
-        return result.stdout
-
-    def run_optional(self, *args: str) -> str | None:
-        """Run git; ``None`` instead of an error if it exits non-zero."""
-        result = self._run(args, None)
-        return result.stdout if result.returncode == 0 else None
-
-    def _run(self, args: tuple[str, ...], stdin: str | None) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
-            ["git", "--no-optional-locks", "-C", str(self._path), *args],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            env=self._env,
-            input=stdin if stdin is not None else "",
-        )
-
-
-def _read_head(git: _Git) -> Head:
+def _read_head(git: GitCli) -> Head:
     symbolic = git.run_optional("symbolic-ref", "-q", "--short", "HEAD")
     commit = git.run_optional("rev-parse", "-q", "--verify", "HEAD^{commit}")
     return Head(
@@ -109,7 +70,7 @@ def _read_head(git: _Git) -> Head:
     )
 
 
-def _read_branches(git: _Git) -> tuple[Branch, ...]:
+def _read_branches(git: GitCli) -> tuple[Branch, ...]:
     """Local branches with their configured Upstream and ahead/behind against it."""
     output = git.run(
         "for-each-ref",
@@ -137,7 +98,7 @@ def _parse_track(track: str) -> tuple[int | None, int | None]:
     return counts["ahead"], counts["behind"]
 
 
-def _read_tags(git: _Git) -> tuple[Tag, ...]:
+def _read_tags(git: GitCli) -> tuple[Tag, ...]:
     """Tags pointing (directly or via an annotated tag) at a commit."""
     output = git.run(
         "for-each-ref",
@@ -155,7 +116,7 @@ def _read_tags(git: _Git) -> tuple[Tag, ...]:
 
 
 def _read_commits(
-    git: _Git, tips: list[str], *, max_commits: int
+    git: GitCli, tips: list[str], *, max_commits: int
 ) -> tuple[tuple[Commit, ...], int]:
     """The most recent ``max_commits`` commits reachable from ``tips`` (children before
     parents), plus tips not among them; and how many reachable commits are left out."""

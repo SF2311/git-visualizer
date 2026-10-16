@@ -16,18 +16,15 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
 
+from git_visualizer.git_cli import GitCli
 from git_visualizer.snapshot import Remote, RemoteTrackingBranch
-
-if TYPE_CHECKING:
-    from git_visualizer.git_reader import _Git
 
 _REMOTES_PREFIX = "refs/remotes/"
 _FETCHING_REFLOG_ACTIONS = ("fetch", "pull", "clone")
 
 
-def read_remotes(git: _Git) -> tuple[tuple[Remote, ...], tuple[RemoteTrackingBranch, ...]]:
+def read_remotes(git: GitCli) -> tuple[tuple[Remote, ...], tuple[RemoteTrackingBranch, ...]]:
     """The configured Remotes and all Remote-tracking Branches (``<remote>/HEAD`` excluded)."""
     urls = _remote_urls(git)
     tracking_branches: list[RemoteTrackingBranch] = []
@@ -56,7 +53,7 @@ def read_remotes(git: _Git) -> tuple[tuple[Remote, ...], tuple[RemoteTrackingBra
     return tuple(remotes), tuple(tracking_branches)
 
 
-def _remote_urls(git: _Git) -> dict[str, str]:
+def _remote_urls(git: GitCli) -> dict[str, str]:
     """URL per configured Remote, in configuration order."""
     output = git.run_optional("config", "-z", "--get-regexp", r"^remote\..*\.url$")
     urls: dict[str, str] = {}
@@ -74,7 +71,7 @@ def _remote_of(tracking_name: str, urls: dict[str, str]) -> str:
     return max(matches, key=len) if matches else tracking_name.split("/", 1)[0]
 
 
-def _reflog_fetch_times(git: _Git, refs: list[str]) -> dict[str, float]:
+def _reflog_fetch_times(git: GitCli, refs: list[str]) -> dict[str, float]:
     """Per ref, the time of its newest reflog entry written by fetch/pull/clone."""
     if not refs:
         return {}
@@ -89,7 +86,7 @@ def _reflog_fetch_times(git: _Git, refs: list[str]) -> dict[str, float]:
     return times
 
 
-def _fetch_head(git: _Git) -> tuple[set[str], float | None]:
+def _fetch_head(git: GitCli) -> tuple[set[str], float | None]:
     """The (normalized) URLs recorded in ``FETCH_HEAD`` and its modification time."""
     path_output = git.run_optional("rev-parse", "--path-format=absolute", "--git-path", "FETCH_HEAD")
     if path_output is None:

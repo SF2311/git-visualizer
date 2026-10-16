@@ -8,7 +8,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-from git_visualizer.git_reader import _Git
+from git_visualizer.git_cli import GitCli
 
 
 def unreachable_commits(
@@ -24,7 +24,7 @@ def unreachable_commits(
     shown_refs = ["--branches", "--tags", "--remotes"]
     if head_commit is not None:
         shown_refs.append(head_commit)
-    output = _Git(repository_path).run_optional(
+    output = GitCli(repository_path).run_optional(
         "rev-list", "--ignore-missing", *candidates, "--not", *shown_refs
     )
     if output is None:

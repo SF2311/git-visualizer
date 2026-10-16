@@ -23,7 +23,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QElapsedTimer, QFileSystemWatcher, QObject, QTimer
 
-from git_visualizer.git_reader import _Git
+from git_visualizer.git_cli import GitCli
 
 # Individually watched Working Tree files (directories are always watched); every
 # watch costs a file descriptor on macOS, and polling covers the rest.
@@ -112,7 +112,7 @@ class RepositoryWatcher(QObject):
 
 
 def _find_targets(folder: Path) -> _Targets:
-    git = _Git(folder)
+    git = GitCli(folder)
     top_level = git.run_optional("rev-parse", "--show-toplevel")
     git_dir = git.run_optional("rev-parse", "--absolute-git-dir")
     common_dir = git.run_optional("rev-parse", "--path-format=absolute", "--git-common-dir")
@@ -137,7 +137,7 @@ def _find_targets(folder: Path) -> _Targets:
 
 
 def _ignored_paths(root: Path) -> frozenset[str]:
-    output = _Git(root).run_optional(
+    output = GitCli(root).run_optional(
         "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory"
     )
     if not output:

@@ -51,7 +51,8 @@ python3 -m venv .venv
 
 Layout (`src/git_visualizer/`):
 
-- `git_reader.py` — runs read-only git commands and produces an immutable Repository Snapshot (`snapshot.py`)
+- `git_cli.py` — `GitCli`, the lock-free runner for read-only git commands
+- `git_reader.py` — reads the repository through `GitCli` and produces an immutable Repository Snapshot (`snapshot.py`)
 - `remote_reader.py` — Remotes, Remote-tracking Branches and last-fetch times from local metadata (never contacts a Remote)
 - `history_layout.py` — columns by ancestry, lanes per branch, label stacking
 - `watcher.py` — watches the git directory and the Working Tree, debounces, polls, calls "repository changed"
