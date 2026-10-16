@@ -36,6 +36,21 @@ class LaneBand:
 
 
 @dataclass(frozen=True)
+class Position:
+    """Where a commit is drawn; -1 for both when it is not shown."""
+
+    column: int
+    lane: int
+
+    def roles(self) -> dict[str, int]:
+        """The ``column`` and ``lane`` roles of a row placed at this position."""
+        return {"column": self.column, "lane": self.lane}
+
+
+NOT_SHOWN = Position(-1, -1)
+
+
+@dataclass(frozen=True)
 class HistoryLayout:
     columns: dict[str, int]
     lanes: dict[str, int]
@@ -56,6 +71,12 @@ class HistoryLayout:
     @property
     def column_count(self) -> int:
         return 1 + max(self.columns.values(), default=-1)
+
+    def position(self, commit_hash: str | None) -> Position:
+        """Column and lane of ``commit_hash``; :data:`NOT_SHOWN` when it is not shown."""
+        if commit_hash is None or commit_hash not in self.columns:
+            return NOT_SHOWN
+        return Position(self.columns[commit_hash], self.lanes[commit_hash])
 
 
 def layout_history(snapshot: RepositorySnapshot, branch_order: Sequence[str]) -> HistoryLayout:

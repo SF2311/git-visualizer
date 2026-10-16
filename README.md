@@ -56,7 +56,7 @@ Layout (`src/git_visualizer/`):
 - `remote_reader.py` — Remotes, Remote-tracking Branches and last-fetch times from local metadata (never contacts a Remote)
 - `history_layout.py` — columns by ancestry, lanes per branch, label stacking
 - `watcher.py` — watches the git directory and the Working Tree, debounces, polls, calls "repository changed"
-- `live_view/` — `LiveViewModel`, the single object QML binds to and the single test seam
+- `live_view/` — `LiveViewModel` (`model.py`), the single object QML binds to and the single test seam; a thin Qt facade over focused modules next to it: `history_rows.py`, `ghost_commits.py`, `leaving_labels.py`, `transitions.py`/`file_transitions.py`, `three_areas.py`, `remotes.py`, `operation_state.py`
 - `qml/` — the view (`Main.qml`, `HistoryView.qml`, components, `Theme` singleton)
 - `app.py` — console entry point
 - `lecture_demo.py` — `git-visualizer-demo`, the step-by-step lecture demo

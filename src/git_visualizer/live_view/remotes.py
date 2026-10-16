@@ -52,7 +52,6 @@ def remote_tracking_rows(
     snapshot: RepositorySnapshot,
     layout: HistoryLayout,
     color_of: Callable[[str], int],
-    position: Callable[[str], dict[str, int]],
 ) -> list[dict[str, Any]]:
     """One label row per Remote-tracking Branch, colored like the local branch whose
     Upstream it is (``colorIndex`` -1 when it is nobody's Upstream)."""
@@ -61,7 +60,7 @@ def remote_tracking_rows(
             "name": tracking.name,
             "remote": tracking.remote,
             "commitHash": tracking.commit_hash,
-            **position(tracking.commit_hash),
+            **layout.position(tracking.commit_hash).roles(),
             "colorIndex": _color(tracking, layout, color_of),
             "stackIndex": layout.remote_tracking_slots[tracking.name],
             "isUpstream": tracking.name in layout.upstream_of,

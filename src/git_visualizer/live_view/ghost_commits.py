@@ -1,6 +1,6 @@
 """Ghost Commits: commits that were reachable before a state change and are not after.
 
-The rule (spec, ticket 07):
+The rule (spec, "Ghost Commits"):
 
 * A commit shown in the previous Repository Snapshot becomes a Ghost Commit when no
   shown ref or HEAD reaches it any more (``refs/stash`` does not count). Commits that
@@ -8,16 +8,17 @@ The rule (spec, ticket 07):
 * Ghost Commits are cleared by the next transition that moves a ref
   (:attr:`Transition.moves_ref`); the transition that created them does not clear
   them. Other changes (HEAD only, Working Tree, Staging Area) keep them.
-* A Ghost Commit shown again (e.g. checked out) is an ordinary commit again.
+* A Ghost Commit shown again (e.g. checked out) is an ordinary commit again, and does
+  not grow in again as an added commit.
 * :meth:`GhostCommits.clear` drops them all (``Esc``); a fresh start has none.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
-from git_visualizer.live_view.transitions import Transition
+from git_visualizer.live_view.transitions import Transition, TransitionKind
 from git_visualizer.snapshot import Commit, RepositorySnapshot
 
 
@@ -31,6 +32,7 @@ class GhostCommit:
 class GhostCommits:
     def __init__(self) -> None:
         self._ghosts: dict[str, GhostCommit] = {}
+        self._shown_colors: dict[str, int] = {}
 
     def update(
         self,
@@ -38,11 +40,12 @@ class GhostCommits:
         current: RepositorySnapshot,
         transitions: Sequence[Transition],
         *,
-        colors: Mapping[str, int],
         unreachable: Callable[[list[str]], set[str]],
-    ) -> None:
-        """Apply the change ``previous`` → ``current``; ``colors`` are the commits'
-        colors as last shown, ``unreachable`` filters hashes no shown ref reaches."""
+    ) -> list[Transition]:
+        """Apply the change ``previous`` → ``current``; ``unreachable`` filters hashes no
+        shown ref reaches. Returns ``transitions`` without the ``commitAdded`` of former
+        Ghost Commits: they are already on screen, so they must not grow in."""
+        previous_ghosts = set(self._ghosts)
         shown = {commit.hash for commit in current.commits}
         moves_ref = any(transition.moves_ref for transition in transitions)
         # Older ghosts first: a ghost's parent may only become a ghost later, and the
@@ -51,11 +54,24 @@ class GhostCommits:
         candidates = [commit for commit in previous.commits if commit.hash not in shown]
         gone = unreachable([commit.hash for commit in candidates]) if candidates else set()
         kept.update(
-            (commit.hash, GhostCommit(commit, colors.get(commit.hash, -1)))
+            (commit.hash, GhostCommit(commit, self._shown_colors.get(commit.hash, -1)))
             for commit in candidates  # newest first, children before parents
             if commit.hash in gone
         )
         self._ghosts = kept
+        return [
+            transition
+            for transition in transitions
+            if not (transition.kind is TransitionKind.COMMIT_ADDED and transition.to_hash in previous_ghosts)
+        ]
+
+    def remember_shown_colors(self, colors: Mapping[str, int]) -> None:
+        """The colors of the commits as just shown, kept by those that become ghosts."""
+        self._shown_colors = dict(colors)
+
+    def shown_with(self, snapshot: RepositorySnapshot) -> RepositorySnapshot:
+        """``snapshot`` with the Ghost Commits appended after its reachable commits."""
+        return replace(snapshot, commits=snapshot.commits + self.commits)
 
     def clear(self) -> None:
         self._ghosts = {}
