@@ -122,7 +122,7 @@ Am besten am Ende des Demos, wenn die History voll ist.
 ## Tastenkürzel-Übersicht
 
 - [x] `?` blendet die Übersicht „Tastenkürzel“ ein und wieder aus
-- [x] Sie listet alle Kürzel: `Strg +`, `Strg −`, `Strg 0`, `Esc`, `T`, `L`, `?`
+- [x] Sie listet alle Kürzel: `Strg +`, `Strg −`, `Strg 0`, `Esc`, `F5`, `T`, `L`, `?`
 - [x] Jedes gelistete Kürzel funktioniert wirklich
 
 ## Extras (von Hand im Demo-Repository)
@@ -132,7 +132,7 @@ Diese Fälle deckt das Skript nicht ab; im `vorlesung`-Ordner eintippen.
 - [x] `git tag v1`: graues Tag-Label am Commit
 - [x] `echo x >> README.md && git stash`: keine Stash-Commits in der History
 - [x] `git switch --detach HEAD~1`: HEAD losgelöst am Commit; `git switch neu` hängt ihn wieder an (HEAD gleitet)
-- [x] `F5` liest das Repository neu ein (versteckter Notbehelf, nicht in der Übersicht)
+- [x] `F5` liest das Repository neu ein (Notbehelf, in der Tastenkürzel-Übersicht gelistet)
 
 ## Gesamteindruck
 

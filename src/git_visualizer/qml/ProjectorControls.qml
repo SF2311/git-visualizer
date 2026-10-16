@@ -17,12 +17,13 @@ Item {
     property bool legendVisible: false
 
     // Every keyboard shortcut of the Live View, as listed in the overlay; a new
-    // shortcut adds its entry here (Esc is handled in Main.qml).
+    // shortcut adds its entry here (Esc and F5 are handled in Main.qml).
     readonly property var shortcuts: [
         { keys: "Strg +", description: "Vergrößern" },
         { keys: "Strg −", description: "Verkleinern" },
         { keys: "Strg 0", description: "Originalgröße" },
         { keys: "Esc", description: "Ghost Commits ausblenden" },
+        { keys: "F5", description: "Repository neu einlesen" },
         { keys: "T", description: "Helles / dunkles Design umschalten" },
         { keys: "L", description: "Legende ein- / ausblenden" },
         { keys: "?", description: "Tastenkürzel ein- / ausblenden" }

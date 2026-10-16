@@ -210,3 +210,16 @@ def test_l_toggles_the_legend_and_is_listed(view: LoadedView) -> None:
     listed = view.control("shortcuts").toVariant()
     entry = next(entry for entry in listed if entry["keys"] == "L")
     assert "Legende" in entry["description"]
+
+
+def test_f5_rereads_the_repository_and_is_listed(repo: GitRepo, view: LoadedView) -> None:
+    commits = view.window.property("liveView").property("commits")
+    before = commits.rowCount()
+    repo.commit("Zweiter Commit")
+
+    view.press(Qt.Key.Key_F5)
+
+    assert commits.rowCount() == before + 1
+    listed = view.control("shortcuts").toVariant()
+    entry = next(entry for entry in listed if entry["keys"] == "F5")
+    assert "neu einlesen" in entry["description"]

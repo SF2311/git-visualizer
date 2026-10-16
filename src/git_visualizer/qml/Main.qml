@@ -12,7 +12,8 @@ Window {
     title: "Git Visualizer"
     color: Theme.background
 
-    // Hidden fallback: the watcher normally refreshes the Live View on its own.
+    // Fallback, listed in the shortcut overlay: the watcher normally refreshes the
+    // Live View on its own.
     Shortcut {
         sequence: "F5"
         onActivated: window.liveView.notifyRepositoryChanged()

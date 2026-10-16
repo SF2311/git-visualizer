@@ -14,7 +14,7 @@ git-visualizer /path/to/repository   # or without a path: folder picker
 The Live View updates on its own after every git command (filesystem watcher with a
 ~150 ms debounce, plus a 2 s polling fallback). A folder that is not yet a repository
 shows "Kein Repository – warte auf `git init`" until `git init` is run in it. `F5`
-re-reads the repository manually (hidden fallback).
+re-reads the repository manually (fallback, listed in the `?` shortcut overlay).
 
 `--max-commits N` limits the History to the N most recent commits (default 30);
 older history is collapsed into "…".
