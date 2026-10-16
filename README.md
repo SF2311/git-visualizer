@@ -2,7 +2,13 @@
 
 A read-only, projector-friendly Live View of a real git repository that the lecturer
 manipulates in a separate terminal. See `CONTEXT.md` for the vocabulary and
-`docs/adr/` for the key decisions.
+`docs/adr/` for the key decisions. The user interface and the lecture demo are in German.
+
+## Requirements
+
+- Python 3.11 or newer
+- `git` on the `PATH`
+- PySide6 (Qt 6), installed automatically as a dependency
 
 ## Install and run
 
@@ -63,3 +69,7 @@ Layout (`src/git_visualizer/`):
 
 Tests create real repositories in temporary directories, drive them with real `git`
 commands and assert only on what the Live View model exposes (`tests/model_output.py`).
+
+## License
+
+[MIT](LICENSE) © Sven Feyerabend
