@@ -51,7 +51,7 @@ def read_remotes(git: GitCli) -> tuple[tuple[Remote, ...], tuple[RemoteTrackingB
     remotes = []
     for remote_name, url in urls.items():
         times = [fetched_at[ref] for ref in refs_by_remote.get(remote_name, []) if ref in fetched_at]
-        if fetch_head_time is not None and _normalized_url(url) in fetch_head_urls:
+        if fetch_head_time is not None and normalized_url(url) in fetch_head_urls:
             times.append(fetch_head_time)
         remotes.append(Remote(name=remote_name, url=url, last_fetched=max(times, default=None)))
     return tuple(remotes), tuple(tracking_branches)
@@ -101,12 +101,13 @@ def _fetch_head(git: GitCli) -> tuple[set[str], float | None]:
         modified = os.stat(path).st_mtime
     except OSError:
         return set(), None
-    urls = {_normalized_url(line.rpartition(" of ")[2]) for line in content.splitlines() if " of " in line}
+    urls = {normalized_url(line.rpartition(" of ")[2]) for line in content.splitlines() if " of " in line}
     return urls, modified
 
 
-def _normalized_url(url: str) -> str:
-    """``url`` as git records it in ``FETCH_HEAD``: no credentials, no ``.git``/``/`` suffix."""
+def normalized_url(url: str) -> str:
+    """``url`` as git records it in ``FETCH_HEAD``: no credentials, no ``.git``/``/`` suffix
+    (an scp-like ``user@host:path`` keeps its user)."""
     scheme, separator, rest = url.partition("://")
     if separator:
         authority, slash, path = rest.partition("/")

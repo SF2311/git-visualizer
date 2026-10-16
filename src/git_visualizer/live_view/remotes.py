@@ -7,6 +7,7 @@ from collections.abc import Callable
 from typing import Any
 
 from git_visualizer.history_layout import HistoryLayout
+from git_visualizer.remote_reader import normalized_url
 from git_visualizer.snapshot import RemoteTrackingBranch, RepositorySnapshot
 
 REMOTE_ROLES = ("name", "url", "shortUrl", "lastFetched", "trackingBranches")
@@ -81,15 +82,10 @@ def short_url(url: str) -> str:
         rest = url[scheme.end() :]
         if scheme.group().lower() == "file://":
             return _short_path(rest)
-        authority, slash, path = rest.partition("/")
-        return _without_git_suffix(authority.rpartition("@")[2] + slash + path)
+        return normalized_url(url)[scheme.end() :]
     if scp := _SCP_LIKE.match(url):
-        return _without_git_suffix(f"{scp.group(1)}:{scp.group(2)}")
+        return normalized_url(f"{scp.group(1)}:{scp.group(2)}")
     return _short_path(url)
-
-
-def _without_git_suffix(location: str) -> str:
-    return location.rstrip("/").removesuffix(".git").rstrip("/")
 
 
 def _short_path(path: str) -> str:
