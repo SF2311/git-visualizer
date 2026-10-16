@@ -33,8 +33,7 @@ def read_snapshot(
     tags and HEAD (never ``refs/stash``): the ``max_commits`` most recent ones plus any ref tip beyond them.
     """
     git = GitCli(repository_path)
-    git_dir = git.run_optional("rev-parse", "--absolute-git-dir")
-    if git_dir is None:
+    if git.run_optional("rev-parse", "--absolute-git-dir") is None:
         raise NotARepositoryError(str(repository_path))
     head = _read_head(git)
     branches = _read_branches(git)
@@ -57,7 +56,7 @@ def read_snapshot(
         staging_area=staging_area,
         remote_tracking_branches=remote_tracking_branches,
         remotes=remotes,
-        in_progress_operation=read_in_progress_operation(Path(git_dir.strip()), working_tree),
+        in_progress_operation=read_in_progress_operation(git, working_tree),
     )
 
 

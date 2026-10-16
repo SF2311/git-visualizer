@@ -35,9 +35,9 @@ class GitCli:
             raise GitError(f"git {' '.join(args)}: {result.stderr.strip()}")
         return result.stdout
 
-    def run_optional(self, *args: str) -> str | None:
+    def run_optional(self, *args: str, stdin: str | None = None) -> str | None:
         """Run git; ``None`` instead of an error if it exits non-zero."""
-        result = self._run(args, None)
+        result = self._run(args, stdin)
         return result.stdout if result.returncode == 0 else None
 
     def _run(self, args: tuple[str, ...], stdin: str | None) -> subprocess.CompletedProcess[str]:

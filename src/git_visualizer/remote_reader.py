@@ -8,8 +8,12 @@ The last-fetch time of a Remote is the newest of
 
 * the reflog entries of its Remote-tracking Branches (and ``<remote>/HEAD``) written by
   ``fetch``, ``pull`` or ``clone`` (not ``push``, which updates them without fetching),
+  read with ``git log --walk-reflogs``;
 * the modification time of ``FETCH_HEAD`` if it records this Remote's URL (a fetch that
-  brought nothing new writes no reflog entry but still rewrites ``FETCH_HEAD``).
+  brought nothing new writes no reflog entry but still rewrites ``FETCH_HEAD``). No git
+  command prints ``FETCH_HEAD``'s URLs or when it was written, so this file is located
+  with ``git rev-parse --git-path`` and read directly: a documented exception to
+  ADR 0003.
 """
 
 from __future__ import annotations

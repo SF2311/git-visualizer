@@ -151,7 +151,13 @@ def _paused_on_conflict(repo: GitRepo, *command: str) -> None:
 
 @pytest.mark.parametrize(
     "command",
-    [("merge", "feature"), ("rebase", "main"), ("rebase", "--apply", "main"), ("cherry-pick", "feature~1")],
+    [
+        ("merge", "feature"),
+        ("rebase", "main"),
+        ("rebase", "--apply", "main"),
+        ("cherry-pick", "feature~1"),
+        ("revert", "--no-edit", "feature~1"),
+    ],
 )
 def test_refresh_leaves_a_repository_mid_operation_untouched(
     repo: GitRepo, command: tuple[str, ...]
