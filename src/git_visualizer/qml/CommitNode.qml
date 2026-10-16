@@ -19,7 +19,7 @@ Item {
     // A commit the model reports as added (addedCommitHashes) grows in when created.
     property bool grows: false
     property real growth: 1
-    // Wait before growing, e.g. while committed files fly into the node (ticket 06).
+    // Wait before growing, e.g. while committed files fly into the node.
     property int growDelay: 0
 
     readonly property color laneColor: Theme.branchColor(colorIndex)

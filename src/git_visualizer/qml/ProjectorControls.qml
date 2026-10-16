@@ -16,8 +16,8 @@ Item {
     property bool shortcutOverlayVisible: false
     property bool legendVisible: false
 
-    // Every keyboard shortcut of the Live View, as listed in the overlay.
-    // A ticket that adds a shortcut (e.g. Esc, L) adds its entry here.
+    // Every keyboard shortcut of the Live View, as listed in the overlay; a new
+    // shortcut adds its entry here (Esc is handled in Main.qml).
     readonly property var shortcuts: [
         { keys: "Strg +", description: "Vergrößern" },
         { keys: "Strg −", description: "Verkleinern" },

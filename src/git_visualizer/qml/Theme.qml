@@ -33,7 +33,7 @@ QtObject {
         : ["#3b6fd8", "#2f9e44", "#ae3ec9", "#0c8599", "#b08900", "#c2255c", "#5c940d", "#6741d9"]
     // Commits and edges that belong to no branch (colorIndex -1).
     readonly property color noBranch: dark ? "#6b7385" : "#9aa3b2"
-    // Ghost Commits (ticket 07) and their edges are drawn at this opacity; dark needs a
+    // Ghost Commits and their edges are drawn at this opacity; dark needs a
     // little more to stay visible on the projector. An opacity, so zoom does not apply.
     readonly property real ghostOpacity: dark ? 0.4 : 0.32
 
@@ -56,7 +56,7 @@ QtObject {
     readonly property int overlayTitleFontSize: Math.round(30 * zoom)
     readonly property int overlayFontSize: Math.round(22 * zoom)
 
-    // Three Areas strip (ticket 04)
+    // Three Areas strip
     readonly property color stripBackground: dark ? "#1c212b" : "#f0efe9"
     readonly property color stripDivider: dark ? "#3a4252" : "#d6d4cc"
     readonly property color fileFill: dark ? "#232937" : "#ffffff"
@@ -73,7 +73,7 @@ QtObject {
     readonly property int changeFontSize: Math.round(15 * zoom)
     readonly property real fileRowHeight: 40 * zoom
 
-    // Remotes and Upstream (ticket 09)
+    // Remotes and Upstream
     readonly property color remoteBoxFill: dark ? "#1f2430" : "#ffffff"
     readonly property color remoteBoxBorder: dark ? "#4a5366" : "#c4c9d2"
     readonly property color remoteTrackingFill: background
@@ -87,7 +87,7 @@ QtObject {
     readonly property int remoteChipFontSize: Math.round(16 * zoom)
     readonly property int aheadBehindFontSize: Math.round(17 * zoom)
 
-    // In-progress Operation banner (ticket 08)
+    // In-progress Operation banner
     readonly property color bannerFill: dark ? "#b07800" : "#a86b00"
     readonly property color bannerConflictFill: dark ? "#e03131" : "#d62828"
     readonly property color bannerText: "#ffffff"

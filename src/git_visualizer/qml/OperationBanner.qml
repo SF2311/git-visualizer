@@ -18,7 +18,7 @@ Rectangle {
     // Height the window keeps free above the History while the banner is shown.
     property real reservedHeight: active ? Theme.bannerHeight + Theme.bannerMargin * 2 : 0
     Behavior on reservedHeight {
-        NumberAnimation { duration: 250; easing.type: Easing.InOutQuad }
+        NumberAnimation { duration: Motion.bannerDuration; easing.type: Easing.InOutQuad }
     }
 
     implicitWidth: label.implicitWidth + Theme.bannerPadding * 2
@@ -29,10 +29,10 @@ Rectangle {
     visible: opacity > 0
 
     Behavior on opacity {
-        NumberAnimation { duration: 250; easing.type: Easing.InOutQuad }
+        NumberAnimation { duration: Motion.bannerDuration; easing.type: Easing.InOutQuad }
     }
     Behavior on color {
-        ColorAnimation { duration: 250 }
+        ColorAnimation { duration: Motion.bannerDuration }
     }
 
     Text {

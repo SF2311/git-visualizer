@@ -1,7 +1,7 @@
 pragma Singleton
 import QtQuick
 
-// Timing of the History transitions (ticket 05): slow enough to follow on a projector,
+// Timing of the Live View animations: slow enough to follow on a projector,
 // short enough that the next git command never waits for the view.
 QtObject {
     // Branch/tag labels, HEAD, commits and edges sliding to their new place.
@@ -12,7 +12,7 @@ QtObject {
     // A removed branch or tag label fading out where it was.
     readonly property int fadeDuration: 900
 
-    // File transitions (ticket 06).
+    // File transitions.
     // A file sliding between the Working Tree and the Staging Area columns.
     readonly property int fileSlideDuration: 750
     // A file flying from its column into the new commit node.
@@ -23,4 +23,7 @@ QtObject {
     readonly property int fileFadeDuration: 450
     // The new commit grows in only after the files have arrived in it.
     readonly property int commitGrowthDelay: fileFlightDuration + fileStaggerSpan
+
+    // The In-progress Operation banner fading in and out and changing color.
+    readonly property int bannerDuration: 250
 }
